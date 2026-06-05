@@ -1,0 +1,157 @@
+version: '3.8'
+
+services:
+  # Local pre-configured Mosquitto Broker
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: rk3588-mosquitto
+    restart: unless-stopped
+    network_mode: host # Crucial: Bypasses Docker bridge issues on SBCs by binding directly to the host interfaces
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  # Eclipse Zenoh Router
+  zenoh:
+    image: eclipse/zenoh:latest
+    container_name: rk3588-zenoh
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - RUST_LOG=debug
+
+  # MediaMTX RTSP/RTMP/WebRTC Streaming Server
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: rk3588-mediamtx
+    restart: unless-stopped
+    network_mode: host # Crucial: Allows dynamic UDP WebRTC ICE negotiation without complex port-range forwarding
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+
+  # Edge AI Worker for Camera 0
+  cam-ai-yolov8-cam0:
+    build:
+      context: ./cam-ai-yolov8
+      dockerfile: Dockerfile
+    image: cam-ai-yolov8:latest
+    container_name: cam-ai-yolov8-cam0
+    restart: unless-stopped
+    ipc: host # Crucial: Allows the GStreamer shmsrc to access the host shared memory IPC namespace
+    network_mode: host # Crucial: Allows direct connection to Mosquitto via 127.0.0.1 and fast host communication
+    privileged: true # Crucial: Grants full hardware co-processor access (DRM, DMA buffers, NPU context)
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp # Crucial: Maps the host tmp directory containing the GStreamer SHM socket (/tmp/cam0_ai)
+      - /proc/device-tree:/proc/device-tree:ro # Crucial: Exposes physical SoC device tree metadata so NPU checks pass
+      - ./config:/config # Shared JSON config mapping camera enablement and parameters
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129 # Mounts the DRM render node used by newer RKNN/NPU drivers
+      - /dev/dma_heap:/dev/dma_heap   # Mounts DMA-BUF heap node for zero-copy memory transfers
+      - /dev/mpp:/dev/mpp             # Mounts Rockchip MPP hardware decoder/encoder node
+      - /dev/rga:/dev/rga             # Mounts Rockchip 2D graphics acceleration engine node
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/yolov8.rknn # Standard compiled Rockchip RKNN model weight file
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1           # Connects directly to Mosquitto on the shared host network namespace
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=yolov8"
+      - "camera-id=cam0"
+
+  # Edge AI Worker for Camera 0 (YOLOv11)
+  cam-ai-yolov11-cam0:
+    build:
+      context: ./cam-ai-yolov11
+      dockerfile: Dockerfile
+    image: cam-ai-yolov11:latest
+    container_name: cam-ai-yolov11-cam0
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    privileged: true
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp
+      - /proc/device-tree:/proc/device-tree:ro
+      - ./config:/config
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mpp:/dev/mpp
+      - /dev/rga:/dev/rga
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/yolov11.rknn
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=yolov11"
+      - "camera-id=cam0"
+
+  # Edge AI Worker for Camera 0 (YOLOv26)
+  cam-ai-yolov26-cam0:
+    build:
+      context: ./cam-ai-yolov26
+      dockerfile: Dockerfile
+    image: cam-ai-yolov26:latest
+    container_name: cam-ai-yolov26-cam0
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    privileged: true
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp
+      - /proc/device-tree:/proc/device-tree:ro
+      - ./config:/config
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mpp:/dev/mpp
+      - /dev/rga:/dev/rga
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/yolo26n-rk3588.rknn
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=yolov26"
+      - "camera-id=cam0"
+
+  # Camera Management Dashboard and Web API Service
+  manager:
+    build:
+      context: ./manager
+      dockerfile: Dockerfile
+    container_name: rk3588-manager
+    restart: unless-stopped
+    network_mode: host # Binds to host port 8080 directly for seamless access and local system metrics extraction
+    volumes:
+      - ./config:/config # Share configuration store (cameras.json)
+      - /var/run/docker.sock:/var/run/docker.sock # Grants permission to trigger graceful restarts of worker containers
+      - /sys:/sys:ro # Required to query RK3588 physical NPU core status/loads
+      - /proc:/proc:ro # Required to parse CPU stats and active Memory logs

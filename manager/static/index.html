@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge AI Camera Hub - Orange Pi 5 Pro</title>
+    <!-- Google Fonts for elite modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Paho MQTT WebSockets Client -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+</head>
+<body>
+    <div class="glass-app-container">
+
+        <!-- Navigation Tabs -->
+        <nav class="navigation-tabs" id="tabBar">
+            <button class="tab-btn active" data-tab="cam0">Camera</button>
+            <button class="tab-btn settings-tab" data-tab="settings">⚙ Settings</button>
+        </nav>
+
+        <!-- Main Workspace Contents -->
+        <main class="dashboard-content">
+            <!-- Camera Dashboard Panel -->
+            <section class="camera-panel active-panel" id="cameraPanel">
+                <div class="workspace-grid">
+                    <!-- Left Column: Dynamic Video Feed & Overlay -->
+                    <div class="feed-column">
+                        <!-- Top Stream: Camera Feed -->
+                        <div class="video-wrapper" id="videoWrapper">
+                            <div class="stream-caption" id="captionCamera">Camera Feed • 1920x1080 @ 30 fps</div>
+                            <!-- Native WHEP WebRTC Stream from MediaMTX -->
+                            <iframe id="webrtcIframe" class="webrtc-stream-feed" src="" frameborder="0" allowfullscreen></iframe>
+                            <!-- Visual placeholder when stream is disabled -->
+                            <div class="stream-placeholder" id="streamPlaceholder">
+                                <div class="placeholder-icon">🎦</div>
+                                <p>WebRTC Stream Preview Disabled</p>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Stream: AI Feed with Bounding Box Overlay -->
+                        <div class="video-wrapper" id="videoWrapperAi">
+                            <div class="stream-caption" id="captionCameraAi">AI Feed • 640x360 @ 5 fps</div>
+                            <!-- Native WHEP WebRTC Stream from MediaMTX -->
+                            <iframe id="webrtcIframeAi" class="webrtc-stream-feed" src="" frameborder="0" allowfullscreen></iframe>
+                            <!-- Canvas overlay for drawing real-time bounding boxes -->
+                            <canvas id="bboxCanvas"></canvas>
+                            <!-- Visual placeholder when stream is disabled -->
+                            <div class="stream-placeholder" id="streamPlaceholderAi">
+                                <div class="placeholder-icon">🤖</div>
+                                <p>AI Stream Preview Disabled</p>
+                            </div>
+                        </div>
+
+                        <!-- Checkbox Controls below Video -->
+                        <div class="checkbox-row">
+                            <label class="premium-checkbox">
+                                <input type="checkbox" id="chkPreview" checked>
+                                <span class="checkmark"></span>
+                                Preview
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Control Parameters & Form -->
+                    <div class="control-column">
+                        <h2 class="section-title" id="pipelineTitle">AI pipeline for Camera</h2>
+                        
+                        <div class="control-card">
+                            <label class="premium-checkbox inline-enabled">
+                                <input type="checkbox" id="chkEnabled" checked>
+                                <span class="checkmark"></span>
+                                Enabled
+                            </label>
+
+                            <div class="parameter-group">
+                                <div class="dropdown-container">
+                                    <select id="selFps" class="premium-dropdown">
+                                        <option value="1">1 fps</option>
+                                        <option value="2">2 fps</option>
+                                        <option value="5" selected>5 fps</option>
+                                        <option value="10">10 fps</option>
+                                        <option value="15">15 fps</option>
+                                        <option value="25">25 fps</option>
+                                        <option value="30">30 fps</option>
+                                    </select>
+                                    <span class="dropdown-label">Input</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter-group">
+                                <div class="dropdown-container">
+                                    <select id="selModel" class="premium-dropdown">
+                                        <option value="yolov8" selected>YOLOv8</option>
+                                        <option value="yolov11">YOLOv11</option>
+                                        <option value="yolov26">YOLOv26</option>
+                                    </select>
+                                    <span class="dropdown-label">Model</span>
+                                </div>
+                            </div>
+
+                            <label class="premium-checkbox block-publish">
+                                <input type="checkbox" id="chkPublish" checked>
+                                <span class="checkmark"></span>
+                                Publish detections
+                            </label>
+
+                            <button id="btnUpdate" class="premium-btn">Update</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Panel -->
+            <section class="settings-panel" id="settingsPanel">
+                <h2 class="section-title">Global Network Config</h2>
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <div class="input-group">
+                            <label for="txtMqttHost">MQTT WebSockets Host</label>
+                            <input type="text" id="txtMqttHost" value="" placeholder="Orange Pi IP address">
+                            <small>Defaults to current dashboard URL hostname.</small>
+                        </div>
+                        <div class="input-group">
+                            <label for="txtMqttPort">MQTT WebSockets Port</label>
+                            <input type="number" id="txtMqttPort" value="9001">
+                        </div>
+                        <div class="input-group">
+                            <label for="txtMediaMtxPort">MediaMTX WHEP WebRTC Port</label>
+                            <input type="number" id="txtMediaMtxPort" value="8889">
+                        </div>
+                        <button id="btnSaveSettings" class="premium-btn">Save Settings</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- System Resource Utilization Panel -->
+        <footer class="system-monitor-panel">
+            <div class="monitor-grid">
+                <!-- Left Monitor metrics -->
+                <div class="metric-container">
+                    <span class="metric-name">CPU load%</span>
+                    <div class="progress-bar-container">
+                        <div class="progress-fill cpu-fill" id="barCpu" style="width: 0%;"></div>
+                    </div>
+                    <span class="metric-value" id="valCpu">0%</span>
+                </div>
+
+                <div class="metric-container">
+                    <span class="metric-name">CPU temp</span>
+                    <div class="progress-bar-container">
+                        <div class="progress-fill cpu-temp-fill" id="barCpuTemp" style="width: 0%;"></div>
+                    </div>
+                    <span class="metric-value" id="valCpuTemp">0°C</span>
+                </div>
+
+                <div class="metric-container">
+                    <span class="metric-name">NPU core0</span>
+                    <div class="progress-bar-container">
+                        <div class="progress-fill npu0-fill" id="barNpu0" style="width: 0%;"></div>
+                    </div>
+                    <span class="metric-value" id="valNpu0">0%</span>
+                </div>
+
+                <div class="metric-container">
+                    <span class="metric-name">NPU core1</span>
+                    <div class="progress-bar-container">
+                        <div class="progress-fill npu1-fill" id="barNpu1" style="width: 0%;"></div>
+                    </div>
+                    <span class="metric-value" id="valNpu1">0%</span>
+                </div>
+
+                <div class="metric-container">
+                    <span class="metric-name">NPU core2</span>
+                    <div class="progress-bar-container">
+                        <div class="progress-fill npu2-fill" id="barNpu2" style="width: 0%;"></div>
+                    </div>
+                    <span class="metric-value" id="valNpu2">0%</span>
+                </div>
+
+                <div class="metric-container">
+                    <span class="metric-name">NPU temp</span>
+                    <div class="progress-bar-container">
+                        <div class="progress-fill npu-temp-fill" id="barNpuTemp" style="width: 0%;"></div>
+                    </div>
+                    <span class="metric-value" id="valNpuTemp">0°C</span>
+                </div>
+
+                <!-- Right Monitor metrics -->
+                <div class="metric-container memory-metric">
+                    <span class="metric-name">Memory</span>
+                    <div class="progress-bar-container">
+                        <div class="progress-fill mem-fill" id="barMem" style="width: 0%;"></div>
+                    </div>
+                    <span class="metric-value" id="valMem">0%</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Notification Toast Overlay -->
+    <div id="toast" class="toast-notification">Settings updated successfully!</div>
+
+    <script src="app.js"></script>
+</body>
+</html>

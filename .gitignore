@@ -1,0 +1,20 @@
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ipynb_checkpoints/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Editor configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local config overrides if any
+config/cameras.json.local

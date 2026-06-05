@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch cameras.json for changes
+
+[Path]
+PathModified=/opt/uglycam/config/cameras.json
+
+[Install]
+WantedBy=multi-user.target
+

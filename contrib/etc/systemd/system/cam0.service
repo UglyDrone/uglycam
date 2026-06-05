@@ -1,0 +1,24 @@
+[Unit]
+Description=Camera 0 GStreamer Pipeline
+After=local-fs.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+ExecStartPre=/bin/rm -f /tmp/cam0_main /tmp/cam0_ai /tmp/cam0_ai_rtsp
+ExecStart=/opt/uglycam/bin/runcams.sh
+
+Restart=always
+RestartSec=3
+
+User=root
+Group=root
+
+LimitNOFILE=65536
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

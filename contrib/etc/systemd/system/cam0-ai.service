@@ -1,0 +1,23 @@
+[Unit]
+Description=Camera 0 AI GStreamer Pipeline
+After=cam0.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+ExecStart=/opt/uglycam/bin/ai_rtsp_stream.sh
+
+Restart=always
+RestartSec=3
+
+User=root
+Group=root
+
+LimitNOFILE=65536
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

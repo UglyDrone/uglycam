@@ -1,0 +1,7 @@
+[Unit]
+Description=Restart cam0 when cameras.json changes
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl restart cam0.service
+

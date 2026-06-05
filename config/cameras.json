@@ -1,0 +1,8 @@
+{
+  "cam0": {
+    "enabled": true,
+    "fps": 5,
+    "model": "yolov8",
+    "publish_detections": true
+  }
+}

@@ -1,0 +1,25 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    fragment@0 {
+        target = <&mipi_in_ucam0>;
+        __overlay__ {
+            data-lanes = <1 2 3 4>;
+        };
+    };
+
+    fragment@1 {
+        target = <&mipi_in_ucam1>;
+        __overlay__ {
+            data-lanes = <1 2 3 4>;
+        };
+    };
+
+    fragment@2 {
+        target = <&ov13855_out2>;
+        __overlay__ {
+            data-lanes = <1 2 3 4>;
+        };
+    };
+};

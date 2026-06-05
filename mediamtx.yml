@@ -1,0 +1,13 @@
+# MediaMTX Configuration for Edge Streams
+logLevel: info
+
+rtsp: yes
+rtmp: yes
+webrtc: yes
+
+paths:
+  cam0:
+    source: publisher
+
+  cam0_ai:
+    source: publisher
