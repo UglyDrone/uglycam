@@ -9,7 +9,6 @@ class ZenohClientWrapper:
     def __init__(self, camera_id: str):
         self.camera_id = camera_id
         self.session = None
-        
         # Append slot suffix for parallel containers
         import os
         core_mask = os.getenv("RKNN_CORE_MASK", "0")
@@ -35,7 +34,7 @@ class ZenohClientWrapper:
             self.session = None
             logger.info("Zenoh session closed.")
 
-    def publish_detections(self, timestamp: float, detections: list):
+    def publish_detections(self, timestamp: float, detections: list, analytics: dict = None):
         if not self.session or not detections:
             return
 
@@ -44,6 +43,8 @@ class ZenohClientWrapper:
             "timestamp": timestamp,
             "detections": detections
         }
+        if analytics:
+            payload["analytics"] = analytics
 
         try:
             payload_str = json.dumps(payload)

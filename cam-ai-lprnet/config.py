@@ -11,11 +11,11 @@ class Config:
     
     # Frame Dimensions (Must match the producer stream caps exactly)
     FRAME_WIDTH = int(os.getenv("FRAME_WIDTH", "640"))
-    FRAME_HEIGHT = int(os.getenv("FRAME_HEIGHT", "640"))
+    FRAME_HEIGHT = int(os.getenv("FRAME_HEIGHT", "360"))
     FRAME_FPS = int(os.getenv("FRAME_FPS", "5"))
     
     # AI Inference Settings
-    MODEL_PATH = os.getenv("MODEL_PATH", "models/yolov11.rknn")
+    MODEL_PATH = os.getenv("MODEL_PATH", "models/lprnet.rknn")
     CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.25"))
     RKNN_CORE_MASK = int(os.getenv("RKNN_CORE_MASK", "0"))
     
@@ -24,6 +24,13 @@ class Config:
     MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
     MQTT_KEEPALIVE = int(os.getenv("MQTT_KEEPALIVE", "60"))
     MQTT_TOPIC = os.getenv("MQTT_TOPIC", f"/{CAMERA_ID}/detections")
+    
+    # Default characters list for USA license plates (alphanumeric + hyphen + space symbols)
+    CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+             "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
+             "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T",
+             "U", "V", "W", "X", "Y", "Z", "-", " "]
+    CTC_BLANK_INDEX = -1 # -1 maps to len(CHARS)
     
     # Dynamic settings from cameras.json config store
     ENABLED = True
@@ -49,18 +56,14 @@ class Config:
                 if core_mask_env == "2":
                     model_name = cam_settings.get("model2", "none")
                 else:
-                    model_name = cam_settings.get("model1", cam_settings.get("model", "yolov11"))
+                    model_name = cam_settings.get("model1", cam_settings.get("model", "lprnet"))
 
                 if model_name.lower() == "none":
                     ENABLED = False
                 else:
                     # Map model string to target rknn weight path
-                    if model_name in ["yolov26", "yolov26-supervision"]:
-                        MODEL_PATH = "models/yolo26n-rk3588.rknn"
-                    elif model_name == "yolov8":
-                        MODEL_PATH = "models/yolov8.rknn"
-                    elif model_name == "yolov11":
-                        MODEL_PATH = "models/yolov11.rknn"
+                    if model_name == "lprnet":
+                        MODEL_PATH = "models/lprnet.rknn"
                     else:
                         MODEL_PATH = f"models/{model_name}.rknn"
                     
@@ -79,4 +82,3 @@ def setup_logging():
     )
     # Reduce noise from external libraries
     logging.getLogger("urllib3").setLevel(logging.WARNING)
-

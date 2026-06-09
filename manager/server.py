@@ -221,50 +221,68 @@ def send_docker_post(endpoint):
         return False
 
 def restart_worker_container(camera_id):
-    model = "yolov8"
+    model1 = "yolov8"
+    model2 = "none"
     try:
         if os.path.exists(CONFIG_PATH):
             with open(CONFIG_PATH, "r") as f:
                 config = json.load(f)
-                model = config.get(camera_id, {}).get("model", "yolov8")
+                cam_settings = config.get(camera_id, {})
+                model1 = cam_settings.get("model1", cam_settings.get("model", "yolov8"))
+                model2 = cam_settings.get("model2", "none")
     except Exception as e:
         print(f"Error reading config in restart_worker_container: {e}")
         
-    print(f"Syncing containers for {camera_id}. Selected model: {model}")
+    print(f"Syncing containers for {camera_id}. Slot 1 model: {model1}, Slot 2 model: {model2}")
     containers = get_docker_containers()
     
     overall_success = True
-    found_target = False
+    found_target_1 = False
+    found_target_2 = False
     
     for container in containers:
         labels = container.get("Labels", {})
         cam_ai_type = labels.get("cam-ai-type")
         cam_ai_model = labels.get("cam-ai-model")
         cam_camera_id = labels.get("camera-id")
+        cam_ai_npu = labels.get("cam-ai-npu", "npu1")
         
         if cam_ai_type == "worker" and cam_camera_id == camera_id:
             container_id = container.get("Id")
             names = container.get("Names", ["unknown"])
             name = names[0] if names else "unknown"
             
-            if cam_ai_model == model:
-                found_target = True
-                print(f"Starting/Restarting active worker container: {name} (ID: {container_id[:12]})")
+            target_model = model1 if cam_ai_npu == "npu1" else model2
+            
+            if target_model.lower() == "none" or cam_ai_model != target_model:
+                print(f"Stopping inactive/disabled worker container: {name} (Slot: {cam_ai_npu}, ID: {container_id[:12]})")
+                send_docker_post(f"/containers/{container_id}/stop")
+            else:
+                if cam_ai_npu == "npu1":
+                    found_target_1 = True
+                else:
+                    found_target_2 = True
+                print(f"Starting/Restarting active worker container: {name} (Slot: {cam_ai_npu}, ID: {container_id[:12]})")
                 success = send_docker_post(f"/containers/{container_id}/restart")
                 if not success:
                     overall_success = False
-            else:
-                print(f"Stopping inactive worker container: {name} (ID: {container_id[:12]})")
-                send_docker_post(f"/containers/{container_id}/stop")
-                
-    if not found_target:
-        print(f"Warning: No matching container with label cam-ai-model={model} and camera-id={camera_id} was found!")
-        fallback_name = f"cam-ai-{model}-{camera_id}"
-        print(f"Attempting fallback restart on: {fallback_name}")
-        if send_docker_post(f"/containers/{fallback_name}/restart"):
-            found_target = True
+                    
+    # Fallback restart logic
+    if model1.lower() != "none" and not found_target_1:
+        fallback_name_1 = f"cam-ai-{model1}-{camera_id}-npu1"
+        print(f"Warning: No matching slot 1 container found! Attempting fallback restart on: {fallback_name_1}")
+        if send_docker_post(f"/containers/{fallback_name_1}/restart"):
+            found_target_1 = True
             
-    return overall_success and found_target
+    if model2.lower() != "none" and not found_target_2:
+        fallback_name_2 = f"cam-ai-{model2}-{camera_id}-npu2"
+        print(f"Warning: No matching slot 2 container found! Attempting fallback restart on: {fallback_name_2}")
+        if send_docker_post(f"/containers/{fallback_name_2}/restart"):
+            found_target_2 = True
+            
+    slot1_ok = (model1.lower() == "none" or found_target_1)
+    slot2_ok = (model2.lower() == "none" or found_target_2)
+    return overall_success and slot1_ok and slot2_ok
 
 class CameraManagerHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):

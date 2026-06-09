@@ -92,12 +92,29 @@
 
                             <div class="parameter-group">
                                 <div class="dropdown-container">
-                                    <select id="selModel" class="premium-dropdown">
+                                    <select id="selModel1" class="premium-dropdown">
                                         <option value="yolov8" selected>YOLOv8</option>
                                         <option value="yolov11">YOLOv11</option>
                                         <option value="yolov26">YOLOv26</option>
+                                        <option value="yolov26-supervision">YOLOv26 (Supervision)</option>
+                                        <option value="lprnet">LPRNet (License Plate)</option>
+                                        <option value="none">None</option>
                                     </select>
-                                    <span class="dropdown-label">Model</span>
+                                    <span class="dropdown-label">NPU Core 1 Model</span>
+                                </div>
+                            </div>
+
+                            <div class="parameter-group">
+                                <div class="dropdown-container">
+                                    <select id="selModel2" class="premium-dropdown">
+                                        <option value="yolov8">YOLOv8</option>
+                                        <option value="yolov11">YOLOv11</option>
+                                        <option value="yolov26">YOLOv26</option>
+                                        <option value="yolov26-supervision">YOLOv26 (Supervision)</option>
+                                        <option value="lprnet">LPRNet (License Plate)</option>
+                                        <option value="none" selected>None</option>
+                                    </select>
+                                    <span class="dropdown-label">NPU Core 2 Model</span>
                                 </div>
                             </div>
 

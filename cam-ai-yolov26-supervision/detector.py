@@ -29,16 +29,15 @@ class DetectorBackend(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def detect(self, frame: np.ndarray, conf_threshold: float) -> list[dict]:
+    def detect(self, frame: np.ndarray, conf_threshold: float) -> dict:
         """
         Runs object detection inference on a BGR image frame.
         
         Returns:
-            A list of dictionary objects, each representing a detection:
+            A dictionary containing:
             {
-                "class": str,          # Name of the predicted class (e.g., 'person')
-                "confidence": float,   # Confidence score (0.0 to 1.0)
-                "bbox": [x1, y1, x2, y2] # Bounding box coordinates normalized to [0.0, 1.0]
+                "detections": list[dict], # List of formatted detection dictionaries
+                "analytics": dict         # Supervision analytics (total_count, counts)
             }
         """
         pass
@@ -368,7 +367,7 @@ class RKNNYOLOv8Detector(DetectorBackend):
             logger.error(f"Failed to load RKNN model: {e}")
             raise
 
-    def detect(self, frame: np.ndarray, conf_threshold: float) -> list[dict]:
+    def detect(self, frame: np.ndarray, conf_threshold: float) -> dict:
         """
         Runs co-processor NPU inference and parses outputs using integrated math helpers.
         """
@@ -402,8 +401,28 @@ class RKNNYOLOv8Detector(DetectorBackend):
         )
 
         detections = []
+        analytics = {"total_count": 0, "counts": {}}
+
         if pp is not None:
             boxes, classes, scores = pp
+
+            # Incorporate Roboflow Supervision
+            try:
+                import supervision as sv
+                sv_dets = sv.Detections(
+                    xyxy=boxes,
+                    class_id=classes.astype(int),
+                    confidence=scores.astype(np.float32)
+                )
+                analytics["total_count"] = len(sv_dets)
+                class_counts = {}
+                for cid in sv_dets.class_id:
+                    class_name = COCO_CLASSES[cid] if cid < len(COCO_CLASSES) else f"unknown-{cid}"
+                    class_counts[class_name] = class_counts.get(class_name, 0) + 1
+                analytics["counts"] = class_counts
+            except Exception as e:
+                logger.error(f"Supervision analysis failed: {e}")
+
             for box, cls_id, sc in zip(boxes, classes, scores):
                 x1, y1, x2, y2 = [float(v) for v in box]
 
@@ -428,4 +447,7 @@ class RKNNYOLOv8Detector(DetectorBackend):
                     "bbox": [x1_norm, y1_norm, x2_norm, y2_norm]
                 })
 
-        return detections
+        return {
+            "detections": detections,
+            "analytics": analytics
+        }

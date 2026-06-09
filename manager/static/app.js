@@ -4,9 +4,12 @@
 let activeCamera = 'cam0';
 let camerasConfig = {};
 let mqttClient = null;
-let lastDetectionTime = 0;
 let statsInterval = null;
-let bboxTimeout = null;
+
+// Track active detections per slot to avoid flickering
+window.activeDetections = {};
+window.activeDetectionTimes = {};
+let redrawTimeout = null;
 
 // Default Global Network settings
 const settings = {
@@ -98,7 +101,7 @@ function initTabControllers() {
                 // Load updated stream source and fields
                 updateStreamSource();
                 applyConfigToUI();
-                clearCanvas();
+                clearDetections();
             }
         });
     });
@@ -122,7 +125,7 @@ function initFormControls() {
             webrtcIframeAi.src = '';
             streamPlaceholder.style.zIndex = 2;
             streamPlaceholderAi.style.zIndex = 2;
-            clearCanvas();
+            clearDetections();
         }
     });
 
@@ -158,7 +161,9 @@ function initFormControls() {
             settings: {
                 enabled: document.getElementById('chkEnabled').checked,
                 fps: parseInt(document.getElementById('selFps').value),
-                model: document.getElementById('selModel').value,
+                model1: document.getElementById('selModel1').value,
+                model2: document.getElementById('selModel2').value,
+                model: document.getElementById('selModel1').value,
                 publish_detections: document.getElementById('chkPublish').checked
             }
         };
@@ -213,7 +218,8 @@ function applyConfigToUI() {
 
     document.getElementById('chkEnabled').checked = config.enabled;
     document.getElementById('selFps').value = config.fps.toString();
-    document.getElementById('selModel').value = config.model;
+    document.getElementById('selModel1').value = config.model1 || config.model || 'yolov8';
+    document.getElementById('selModel2').value = config.model2 || 'none';
     document.getElementById('chkPublish').checked = config.publish_detections;
 
     // Update captions dynamically
@@ -326,7 +332,11 @@ function initMqttConnection() {
             
             // Render only if message belongs to current camera
             if (payload.camera === activeCamera) {
-                renderDetections(payload.detections);
+                const topic = message.destinationName;
+                const topicParts = topic.split('/');
+                const slot = topicParts[topicParts.length - 1] || 'default';
+                
+                updateDetections(slot, payload.detections);
             }
         } catch (e) {
             console.error("Error parsing MQTT detections payload:", e);
@@ -338,7 +348,7 @@ function initMqttConnection() {
         onSuccess: () => {
             console.log("Successfully connected to MQTT WebSockets!");
             // Subscribe to all camera telemetry topics
-            mqttClient.subscribe("/+/detections");
+            mqttClient.subscribe("/+/detections/#");
         },
         onFailure: (err) => {
             console.warn("MQTT WebSockets connection failed:", err.errorMessage);
@@ -349,15 +359,35 @@ function initMqttConnection() {
     mqttClient.connect(options);
 }
 
-// Render dynamic colored boxes on top of feed
-function renderDetections(detections) {
+// Update slot detections and redraw
+function updateDetections(slot, detections) {
+    window.activeDetections[slot] = detections || [];
+    window.activeDetectionTimes[slot] = Date.now();
+    renderAllDetections();
+}
+
+// Render dynamic colored boxes on top of feed for all active slots
+function renderAllDetections() {
     clearCanvas();
-    lastDetectionTime = Date.now();
+    const now = Date.now();
+    
+    // Union all non-stale detections from different NPU slots
+    const allDetections = [];
+    Object.keys(window.activeDetections).forEach(slot => {
+        const time = window.activeDetectionTimes[slot] || 0;
+        if (now - time < 800) {
+            allDetections.push(...window.activeDetections[slot]);
+        }
+    });
+
+    if (allDetections.length === 0) {
+        return;
+    }
 
     const w = bboxCanvas.width / (window.devicePixelRatio || 1);
     const h = bboxCanvas.height / (window.devicePixelRatio || 1);
 
-    detections.forEach(det => {
+    allDetections.forEach(det => {
         const [x1, y1, x2, y2] = det.bbox; // Normalized float coordinates (0.0 to 1.0)
         
         // Map to display resolution coordinates
@@ -399,13 +429,22 @@ function renderDetections(detections) {
         ctx.fillText(label, left + 6, top - 6);
     });
 
-    // Auto-clear boxes if detections stop coming in (handles object exit/timeout)
-    if (bboxTimeout) clearTimeout(bboxTimeout);
-    bboxTimeout = setTimeout(() => {
-        if (Date.now() - lastDetectionTime >= 800) {
-            clearCanvas();
-        }
+    // Schedule redraw to clear stale detections if no new ones arrive
+    if (redrawTimeout) clearTimeout(redrawTimeout);
+    redrawTimeout = setTimeout(() => {
+        renderAllDetections();
     }, 800);
+}
+
+// Clear all active detection memory and clear visual canvas
+function clearDetections() {
+    window.activeDetections = {};
+    window.activeDetectionTimes = {};
+    if (redrawTimeout) {
+        clearTimeout(redrawTimeout);
+        redrawTimeout = null;
+    }
+    clearCanvas();
 }
 
 // Canvas utility functions

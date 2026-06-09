@@ -62,7 +62,7 @@ class MQTTClientWrapper:
         self.client.disconnect()
         logger.info("MQTT Client shut down.")
 
-    def publish_detections(self, topic: str, timestamp: float, detections: list[dict]):
+    def publish_detections(self, topic: str, timestamp: float, detections: list[dict], analytics: dict = None):
         """
         Publishes detections to MQTT in a standardized format.
         Fails fast if connection is not ready.
@@ -76,6 +76,8 @@ class MQTTClientWrapper:
             "timestamp": timestamp,
             "detections": detections
         }
+        if analytics:
+            payload["analytics"] = analytics
 
         try:
             payload_str = json.dumps(payload)

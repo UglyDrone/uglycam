@@ -28,13 +28,13 @@ services:
     volumes:
       - ./mediamtx.yml:/mediamtx.yml:ro
 
-  # Edge AI Worker for Camera 0
-  cam-ai-yolov8-cam0:
+  # Edge AI Worker for Camera 0 (YOLOv8 - NPU Core 1)
+  cam-ai-yolov8-cam0-npu1:
     build:
       context: ./cam-ai-yolov8
       dockerfile: Dockerfile
     image: cam-ai-yolov8:latest
-    container_name: cam-ai-yolov8-cam0
+    container_name: cam-ai-yolov8-cam0-npu1
     restart: unless-stopped
     ipc: host # Crucial: Allows the GStreamer shmsrc to access the host shared memory IPC namespace
     network_mode: host # Crucial: Allows direct connection to Mosquitto via 127.0.0.1 and fast host communication
@@ -61,18 +61,62 @@ services:
       - MQTT_HOST=127.0.0.1           # Connects directly to Mosquitto on the shared host network namespace
       - MQTT_PORT=1883
       - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=1
+      - MQTT_TOPIC=/cam0/detections/npu1
     labels:
       - "cam-ai-type=worker"
       - "cam-ai-model=yolov8"
       - "camera-id=cam0"
+      - "cam-ai-npu=npu1"
 
-  # Edge AI Worker for Camera 0 (YOLOv11)
-  cam-ai-yolov11-cam0:
+  # Edge AI Worker for Camera 0 (YOLOv8 - NPU Core 2)
+  cam-ai-yolov8-cam0-npu2:
+    build:
+      context: ./cam-ai-yolov8
+      dockerfile: Dockerfile
+    image: cam-ai-yolov8:latest
+    container_name: cam-ai-yolov8-cam0-npu2
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    privileged: true
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp
+      - /proc/device-tree:/proc/device-tree:ro
+      - ./config:/config
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mpp:/dev/mpp
+      - /dev/rga:/dev/rga
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/yolov8.rknn
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=2
+      - MQTT_TOPIC=/cam0/detections/npu2
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=yolov8"
+      - "camera-id=cam0"
+      - "cam-ai-npu=npu2"
+
+  # Edge AI Worker for Camera 0 (YOLOv11 - NPU Core 1)
+  cam-ai-yolov11-cam0-npu1:
     build:
       context: ./cam-ai-yolov11
       dockerfile: Dockerfile
     image: cam-ai-yolov11:latest
-    container_name: cam-ai-yolov11-cam0
+    container_name: cam-ai-yolov11-cam0-npu1
     restart: unless-stopped
     ipc: host
     network_mode: host
@@ -99,18 +143,62 @@ services:
       - MQTT_HOST=127.0.0.1
       - MQTT_PORT=1883
       - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=1
+      - MQTT_TOPIC=/cam0/detections/npu1
     labels:
       - "cam-ai-type=worker"
       - "cam-ai-model=yolov11"
       - "camera-id=cam0"
+      - "cam-ai-npu=npu1"
 
-  # Edge AI Worker for Camera 0 (YOLOv26)
-  cam-ai-yolov26-cam0:
+  # Edge AI Worker for Camera 0 (YOLOv11 - NPU Core 2)
+  cam-ai-yolov11-cam0-npu2:
+    build:
+      context: ./cam-ai-yolov11
+      dockerfile: Dockerfile
+    image: cam-ai-yolov11:latest
+    container_name: cam-ai-yolov11-cam0-npu2
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    privileged: true
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp
+      - /proc/device-tree:/proc/device-tree:ro
+      - ./config:/config
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mpp:/dev/mpp
+      - /dev/rga:/dev/rga
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/yolov11.rknn
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=2
+      - MQTT_TOPIC=/cam0/detections/npu2
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=yolov11"
+      - "camera-id=cam0"
+      - "cam-ai-npu=npu2"
+
+  # Edge AI Worker for Camera 0 (YOLOv26 - NPU Core 1)
+  cam-ai-yolov26-cam0-npu1:
     build:
       context: ./cam-ai-yolov26
       dockerfile: Dockerfile
     image: cam-ai-yolov26:latest
-    container_name: cam-ai-yolov26-cam0
+    container_name: cam-ai-yolov26-cam0-npu1
     restart: unless-stopped
     ipc: host
     network_mode: host
@@ -137,10 +225,218 @@ services:
       - MQTT_HOST=127.0.0.1
       - MQTT_PORT=1883
       - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=1
+      - MQTT_TOPIC=/cam0/detections/npu1
     labels:
       - "cam-ai-type=worker"
       - "cam-ai-model=yolov26"
       - "camera-id=cam0"
+      - "cam-ai-npu=npu1"
+
+  # Edge AI Worker for Camera 0 (YOLOv26 - NPU Core 2)
+  cam-ai-yolov26-cam0-npu2:
+    build:
+      context: ./cam-ai-yolov26
+      dockerfile: Dockerfile
+    image: cam-ai-yolov26:latest
+    container_name: cam-ai-yolov26-cam0-npu2
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    privileged: true
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp
+      - /proc/device-tree:/proc/device-tree:ro
+      - ./config:/config
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mpp:/dev/mpp
+      - /dev/rga:/dev/rga
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/yolo26n-rk3588.rknn
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=2
+      - MQTT_TOPIC=/cam0/detections/npu2
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=yolov26"
+      - "camera-id=cam0"
+      - "cam-ai-npu=npu2"
+
+  # Edge AI Worker for Camera 0 (YOLOv26 with Roboflow Supervision - NPU Core 1)
+  cam-ai-yolov26-supervision-cam0-npu1:
+    build:
+      context: ./cam-ai-yolov26-supervision
+      dockerfile: Dockerfile
+    image: cam-ai-yolov26-supervision:latest
+    container_name: cam-ai-yolov26-supervision-cam0-npu1
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    privileged: true
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp
+      - /proc/device-tree:/proc/device-tree:ro
+      - ./config:/config
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mpp:/dev/mpp
+      - /dev/rga:/dev/rga
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/yolo26n-rk3588.rknn
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=1
+      - MQTT_TOPIC=/cam0/detections/npu1
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=yolov26-supervision"
+      - "camera-id=cam0"
+      - "cam-ai-npu=npu1"
+
+  # Edge AI Worker for Camera 0 (YOLOv26 with Roboflow Supervision - NPU Core 2)
+  cam-ai-yolov26-supervision-cam0-npu2:
+    build:
+      context: ./cam-ai-yolov26-supervision
+      dockerfile: Dockerfile
+    image: cam-ai-yolov26-supervision:latest
+    container_name: cam-ai-yolov26-supervision-cam0-npu2
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    privileged: true
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp
+      - /proc/device-tree:/proc/device-tree:ro
+      - ./config:/config
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mpp:/dev/mpp
+      - /dev/rga:/dev/rga
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/yolo26n-rk3588.rknn
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=2
+      - MQTT_TOPIC=/cam0/detections/npu2
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=yolov26-supervision"
+      - "camera-id=cam0"
+      - "cam-ai-npu=npu2"
+
+  # Edge AI Worker for Camera 0 (LPRNet - NPU Core 1)
+  cam-ai-lprnet-cam0-npu1:
+    build:
+      context: ./cam-ai-lprnet
+      dockerfile: Dockerfile
+    image: cam-ai-lprnet:latest
+    container_name: cam-ai-lprnet-cam0-npu1
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    privileged: true
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp
+      - /proc/device-tree:/proc/device-tree:ro
+      - ./config:/config
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mpp:/dev/mpp
+      - /dev/rga:/dev/rga
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/lprnet.rknn
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=1
+      - MQTT_TOPIC=/cam0/detections/npu1
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=lprnet"
+      - "camera-id=cam0"
+      - "cam-ai-npu=npu1"
+
+  # Edge AI Worker for Camera 0 (LPRNet - NPU Core 2)
+  cam-ai-lprnet-cam0-npu2:
+    build:
+      context: ./cam-ai-lprnet
+      dockerfile: Dockerfile
+    image: cam-ai-lprnet:latest
+    container_name: cam-ai-lprnet-cam0-npu2
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    privileged: true
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp
+      - /proc/device-tree:/proc/device-tree:ro
+      - ./config:/config
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mpp:/dev/mpp
+      - /dev/rga:/dev/rga
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/lprnet.rknn
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=2
+      - MQTT_TOPIC=/cam0/detections/npu2
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=lprnet"
+      - "camera-id=cam0"
+      - "cam-ai-npu=npu2"
 
   # Camera Management Dashboard and Web API Service
   manager:

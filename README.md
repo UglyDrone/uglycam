@@ -77,7 +77,9 @@ The application is structured to prioritize low latency, newest-frame semantics,
 │       └── cam0-reload.service # Triggers pipeline restart upon config updates
 ├── cam-ai-yolov8/              # Yolov8 AI processing container source
 ├── cam-ai-yolov11/             # Yolov11 AI processing container source
-└── cam-ai-yolov26/             # Yolov26 AI processing container source
+├── cam-ai-yolov26/             # Yolov26 AI processing container source
+├── cam-ai-yolov26-supervision/ # YOLOv26 AI processing container with Roboflow Supervision analytics
+└── cam-ai-lprnet/              # LPRNet license plate recognition container source
 ```
 
 ---
@@ -160,20 +162,24 @@ docker compose up -d
 ```
 
 ### Step 3: Verify MQTT Telemetry
-Subscribe to the MQTT topic from the host to verify detection publishing:
+Subscribe to the MQTT topics from the host to verify detection publishing for each NPU slot:
 ```bash
-docker exec -it rk3588-mosquitto mosquitto_sub -t "/cam0/detections"
+# Verify NPU Core 1 (Slot 1) detections
+docker exec -it rk3588-mosquitto mosquitto_sub -t "/cam0/detections/npu1"
+
+# Verify NPU Core 2 (Slot 2) detections
+docker exec -it rk3588-mosquitto mosquitto_sub -t "/cam0/detections/npu2"
 ```
 
 ### Step 4: Verify Zenoh Telemetry
-Clients publish detection events to Zenoh at the key expression `demo/camcam/{camera_id}/detections`.
+Clients publish detection events to Zenoh at the key expression `demo/camcam/{camera_id}/detections/{npu_slot}`.
 You can use `zenoh` CLI tools to verify data ingestion:
 ```bash
 # Listen to Zenoh telemetry using the zenoh-cli tool
-zenoh subscribe "demo/camcam/+/detections"
+zenoh subscribe "demo/camcam/+/detections/#"
 ```
 
-#### Expected Telemetry Payload:
+#### Expected Telemetry Payload (Standard):
 ```json
 {
   "camera": "cam0",
@@ -183,9 +189,50 @@ zenoh subscribe "demo/camcam/+/detections"
       "class": "person",
       "confidence": 0.9254,
       "bbox": [0.125, 0.334, 0.458, 0.789]
-      "name": "person"
     }
   ]
+}
+```
+
+#### Expected Telemetry Payload (YOLOv26 Supervision):
+```json
+{
+  "camera": "cam0",
+  "timestamp": 1710000000.123,
+  "detections": [
+    {
+      "class": "person",
+      "confidence": 0.9254,
+      "bbox": [0.125, 0.334, 0.458, 0.789]
+    }
+  ],
+  "analytics": {
+    "total_count": 1,
+    "counts": {
+      "person": 1
+    }
+  }
+}
+```
+
+#### Expected Telemetry Payload (LPRNet):
+```json
+{
+  "camera": "cam0",
+  "timestamp": 1710000000.123,
+  "detections": [
+    {
+      "class": "ABC-1234",
+      "confidence": 0.99,
+      "bbox": [0.05, 0.05, 0.95, 0.95]
+    }
+  ],
+  "analytics": {
+    "total_count": 1,
+    "counts": {
+      "ABC-1234": 1
+    }
+  }
 }
 ```
 *(Bounding boxes `bbox` represent normalized coordinates `[x1, y1, x2, y2]` in the range `[0.0, 1.0]`)*

@@ -357,7 +357,9 @@ class RKNNYOLOv8Detector(DetectorBackend):
                 raise RuntimeError(f"Failed to load RKNN model file. Error code: {ret}")
 
             # Allocate runtime memory and lock co-processor driver contexts
-            ret = self.rknn.init_runtime()
+            from config import Config
+            core_mask = getattr(Config, "RKNN_CORE_MASK", 0)
+            ret = self.rknn.init_runtime(core_mask=core_mask)
             if ret != 0:
                 raise RuntimeError(f"Failed to initialize RKNN co-processor context. Error code: {ret}")
 

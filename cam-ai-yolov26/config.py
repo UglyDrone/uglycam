@@ -17,6 +17,7 @@ class Config:
     # AI Inference Settings
     MODEL_PATH = os.getenv("MODEL_PATH", "models/yolo26n-rk3588.rknn")
     CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.25"))
+    RKNN_CORE_MASK = int(os.getenv("RKNN_CORE_MASK", "0"))
     
     # MQTT Telemetry Settings
     MQTT_HOST = os.getenv("MQTT_HOST", "host.docker.internal")
@@ -43,12 +44,25 @@ class Config:
                 FRAME_FPS = int(cam_settings.get("fps", FRAME_FPS))
                 PUBLISH_DETECTIONS = cam_settings.get("publish_detections", PUBLISH_DETECTIONS)
                 
-                # Map model string to target rknn weight path
-                model_name = cam_settings.get("model", "yolov26")
-                if model_name == "yolov26":
-                    MODEL_PATH = "models/yolo26n-rk3588.rknn"
+                # Get model selection based on RKNN_CORE_MASK
+                core_mask_env = os.getenv("RKNN_CORE_MASK", "0")
+                if core_mask_env == "2":
+                    model_name = cam_settings.get("model2", "none")
                 else:
-                    MODEL_PATH = f"models/{model_name}.rknn"
+                    model_name = cam_settings.get("model1", cam_settings.get("model", "yolov26"))
+
+                if model_name.lower() == "none":
+                    ENABLED = False
+                else:
+                    # Map model string to target rknn weight path
+                    if model_name in ["yolov26", "yolov26-supervision"]:
+                        MODEL_PATH = "models/yolo26n-rk3588.rknn"
+                    elif model_name == "yolov8":
+                        MODEL_PATH = "models/yolov8.rknn"
+                    elif model_name == "yolov11":
+                        MODEL_PATH = "models/yolov11.rknn"
+                    else:
+                        MODEL_PATH = f"models/{model_name}.rknn"
                     
                 print(f"[Config] Loaded parameters for {CAMERA_ID} from cameras.json: "
                       f"enabled={ENABLED}, fps={FRAME_FPS}, model={MODEL_PATH}, publish={PUBLISH_DETECTIONS}")

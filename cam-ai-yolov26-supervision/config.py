@@ -15,7 +15,7 @@ class Config:
     FRAME_FPS = int(os.getenv("FRAME_FPS", "5"))
     
     # AI Inference Settings
-    MODEL_PATH = os.getenv("MODEL_PATH", "models/yolov11.rknn")
+    MODEL_PATH = os.getenv("MODEL_PATH", "models/yolo26n-rk3588.rknn")
     CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.25"))
     RKNN_CORE_MASK = int(os.getenv("RKNN_CORE_MASK", "0"))
     
@@ -49,7 +49,7 @@ class Config:
                 if core_mask_env == "2":
                     model_name = cam_settings.get("model2", "none")
                 else:
-                    model_name = cam_settings.get("model1", cam_settings.get("model", "yolov11"))
+                    model_name = cam_settings.get("model1", cam_settings.get("model", "yolov26-supervision"))
 
                 if model_name.lower() == "none":
                     ENABLED = False

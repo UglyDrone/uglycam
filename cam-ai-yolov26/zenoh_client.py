@@ -9,7 +9,13 @@ class ZenohClientWrapper:
     def __init__(self, camera_id: str):
         self.camera_id = camera_id
         self.session = None
-        self.key_expr = f"demo/camcam/{self.camera_id}/detections"
+        
+        # Append slot suffix for parallel containers
+        import os
+        core_mask = os.getenv("RKNN_CORE_MASK", "0")
+        npu_slot = "npu1" if core_mask == "1" else ("npu2" if core_mask == "2" else "")
+        suffix = f"/{npu_slot}" if npu_slot else ""
+        self.key_expr = f"demo/camcam/{self.camera_id}/detections{suffix}"
 
     def connect(self):
         logger.info("Opening Zenoh session...")

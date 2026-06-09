@@ -35,7 +35,7 @@ class ZenohClientWrapper:
             self.session = None
             logger.info("Zenoh session closed.")
 
-    def publish_detections(self, timestamp: float, detections: list):
+    def publish_detections(self, timestamp: float, detections: list, analytics: dict = None):
         if not self.session or not detections:
             return
 
@@ -44,6 +44,8 @@ class ZenohClientWrapper:
             "timestamp": timestamp,
             "detections": detections
         }
+        if analytics:
+            payload["analytics"] = analytics
 
         try:
             payload_str = json.dumps(payload)
