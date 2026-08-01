@@ -182,12 +182,72 @@ def nms_boxes(boxes, scores, nms_thresh):
         
     return np.array(keep, dtype=np.int32)
 
+def post_process_yolo_single_tensor(outputs, input_size=640, obj_thresh=0.25, nms_thresh=0.45):
+    if outputs is None or len(outputs) == 0:
+        return None
+    
+    out = np.array(outputs[0])
+    if out.ndim != 3:
+        return None
+        
+    if out.shape[1] > out.shape[2]:
+        out = out[0]
+    else:
+        out = out[0].transpose()
+        
+    num_classes = out.shape[1] - 4
+    bboxes = out[:, :4]
+    scores = out[:, 4:]
+    
+    class_ids = np.argmax(scores, axis=-1)
+    confidences = np.max(scores, axis=-1)
+    
+    keep = np.where(confidences >= obj_thresh)[0]
+    if len(keep) == 0:
+        return None
+        
+    boxes = []
+    for idx in keep:
+        cx, cy, w, h = bboxes[idx]
+        x1 = cx - w / 2
+        y1 = cy - h / 2
+        x2 = cx + w / 2
+        y2 = cy + h / 2
+        boxes.append([x1, y1, x2, y2])
+        
+    boxes = np.array(boxes)
+    class_ids = class_ids[keep]
+    confidences = confidences[keep]
+    
+    final_boxes = []
+    final_classes = []
+    final_scores = []
+    for c in np.unique(class_ids):
+        inds = np.where(class_ids == c)[0]
+        keep_nms = nms_boxes(boxes[inds], confidences[inds], nms_thresh)
+        final_boxes.append(boxes[inds][keep_nms])
+        final_classes.append(class_ids[inds][keep_nms])
+        final_scores.append(confidences[inds][keep_nms])
+        
+    if not final_boxes:
+        return None
+        
+    return (
+        np.concatenate(final_boxes, axis=0),
+        np.concatenate(final_classes, axis=0),
+        np.concatenate(final_scores, axis=0)
+    )
+
 def post_process_yolov8(outputs, input_size=640, obj_thresh=0.25, nms_thresh=0.45, box_format='dist', box_scale=1.0):
     """
     This expects typical YOLOv8 RKNN export layout:
       3 branches, each branch has [reg, cls] or [reg, cls, obj]
     """
-    if outputs is None or len(outputs) < 3:
+    if outputs is None or len(outputs) == 0:
+        return None
+    if len(outputs) == 1:
+        return post_process_yolo_single_tensor(outputs, input_size, obj_thresh, nms_thresh)
+    if len(outputs) < 3:
         return None
 
     # Try to normalize outputs to numpy arrays
