@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
     network_mode: host
     environment:
-      - RUST_LOG=debug
+      - RUST_LOG=warn
 
   # MediaMTX RTSP/RTMP/WebRTC Streaming Server
   mediamtx:
