@@ -204,17 +204,18 @@ def post_process_yolo_single_tensor(outputs, input_size=640, obj_thresh=0.25, nm
     bboxes = out[:, :4]
     scores = out[:, 4:]
     
-    # Scale coordinates by anchor strides to convert from grid coordinates to pixels
-    strides = np.ones((8400, 1), dtype=np.float32)
-    strides[0:6400] = 8.0
-    strides[6400:8000] = 16.0
-    strides[8000:8400] = 32.0
-    bboxes = bboxes * strides
-    
     class_ids = np.argmax(scores, axis=-1)
     confidences = np.max(scores, axis=-1)
     
     keep = np.where(confidences >= obj_thresh)[0]
+    
+    # Diagnostic logging: print coordinates for actual detections
+    if len(keep) > 0:
+        logger.info(f"DIAGNOSTIC - Found {len(keep)} candidate boxes above thresh {obj_thresh}")
+        for i in range(min(5, len(keep))):
+            idx = keep[i]
+            logger.info(f"DIAGNOSTIC - Candidate {i}: Raw box={bboxes[idx]}, Class={class_ids[idx]}, Conf={confidences[idx]}")
+            
     if len(keep) == 0:
         return None
         
