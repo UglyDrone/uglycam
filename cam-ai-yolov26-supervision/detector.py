@@ -189,6 +189,11 @@ def post_process_yolo_single_tensor(outputs, input_size=640, obj_thresh=0.25, nm
     out = np.array(outputs[0])
     if out.ndim != 3:
         return None
+
+    # Temporary diagnostic logging
+    logger.info(f"DIAGNOSTIC - Raw shape: {out.shape}")
+    logger.info(f"DIAGNOSTIC - First 5 boxes raw: {out[0, :4, :5]}")
+    logger.info(f"DIAGNOSTIC - First 5 boxes class max: {[np.max(out[0, 4:, i]) for i in range(5)]}")
         
     if out.shape[1] > out.shape[2]:
         out = out[0]
