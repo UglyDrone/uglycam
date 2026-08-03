@@ -54,15 +54,12 @@ class Config:
                 if model_name.lower() == "none":
                     ENABLED = False
                 else:
-                    # Map model string to target rknn weight path
+                    # Map model string to target rknn weight path if compatible
                     if model_name in ["yolov26", "yolov26-supervision"]:
                         MODEL_PATH = "models/yolo26n-rk3588.rknn"
-                    elif model_name == "yolov8":
-                        MODEL_PATH = "models/yolov8.rknn"
-                    elif model_name == "yolov11":
-                        MODEL_PATH = "models/yolov11.rknn"
                     else:
-                        MODEL_PATH = f"models/{model_name}.rknn"
+                        # Fall back to default model for this container
+                        pass
                     
                 print(f"[Config] Loaded parameters for {CAMERA_ID} from cameras.json: "
                       f"enabled={ENABLED}, fps={FRAME_FPS}, model={MODEL_PATH}, publish={PUBLISH_DETECTIONS}")
