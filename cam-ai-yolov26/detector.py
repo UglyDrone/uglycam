@@ -191,10 +191,10 @@ def post_process_yolo_single_tensor(outputs, input_size=640, obj_thresh=0.25, nm
     if out.ndim != 3:
         return None
 
-    # Temporary diagnostic logging
-    logger.info(f"DIAGNOSTIC - Raw shape: {out.shape}")
-    logger.info(f"DIAGNOSTIC - First 5 boxes raw: {out[0, :4, :5]}")
-    logger.info(f"DIAGNOSTIC - First 5 boxes class max: {[np.max(out[0, 4:, i]) for i in range(5)]}")
+    # Temporary diagnostic logging (muted to keep logs clean, but kept for reference)
+    # logger.info(f"DIAGNOSTIC - Raw shape: {out.shape}")
+    # logger.info(f"DIAGNOSTIC - First 5 boxes raw: {out[0, :4, :5]}")
+    # logger.info(f"DIAGNOSTIC - First 5 boxes class max: {[np.max(out[0, 4:, i]) for i in range(5)]}")
         
     if out.shape[1] > out.shape[2]:
         out = out[0]
@@ -204,6 +204,13 @@ def post_process_yolo_single_tensor(outputs, input_size=640, obj_thresh=0.25, nm
     num_classes = out.shape[1] - 4
     bboxes = out[:, :4]
     scores = out[:, 4:]
+    
+    # Scale coordinates by anchor strides to convert from grid coordinates to pixels
+    strides = np.ones((8400, 1), dtype=np.float32)
+    strides[0:6400] = 8.0
+    strides[6400:8000] = 16.0
+    strides[8000:8400] = 32.0
+    bboxes = bboxes * strides
     
     class_ids = np.argmax(scores, axis=-1)
     confidences = np.max(scores, axis=-1)
