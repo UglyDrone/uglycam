@@ -148,9 +148,9 @@ class EdgeAIWorker:
                 if detections and Config.PUBLISH_DETECTIONS:
                     # Capture latency is current wall-clock minus capture timestamp
                     transport_latency = time.time() - timestamp
-                    logger.debug(
-                        f"Detected {len(detections)} targets in {processing_time * 1000:.1f}ms. "
-                        f"Total pipe latency (capture->infer): {transport_latency * 1000:.1f}ms"
+                    logger.info(
+                        f"Detected {len(detections)} targets in {processing_time * 1000:.1f}ms: "
+                        f"{[(d['class'], d['confidence']) for d in detections]}"
                     )
                     
                     self.mqtt_client.publish_detections(

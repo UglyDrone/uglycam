@@ -364,6 +364,33 @@ class RKNNYOLOv8Detector(DetectorBackend):
                 raise RuntimeError(f"Failed to initialize RKNN co-processor context. Error code: {ret}")
 
             logger.info("RKNN co-processor successfully initialized on Rockchip hardware NPU.")
+
+            # One-off test on startup if test_image.jpg exists
+            import os
+            test_img_path = "/config/test_image.jpg"
+            if os.path.exists(test_img_path):
+                logger.info(f"DIAGNOSTIC - Running one-off test on {test_img_path}...")
+                test_img = cv2.imread(test_img_path)
+                if test_img is not None:
+                    # Run detect on the test image
+                    res = self.detect(test_img, conf_threshold=0.25)
+                    # Draw detections
+                    if res:
+                        logger.info(f"DIAGNOSTIC - YOLOv8 Test image detections: {res}")
+                        for det in res:
+                            x1_n, y1_n, x2_n, y2_n = det["bbox"]
+                            h_img, w_img, _ = test_img.shape
+                            x1 = int(x1_n * w_img)
+                            y1 = int(y1_n * h_img)
+                            x2 = int(x2_n * w_img)
+                            y2 = int(y2_n * h_img)
+                            cv2.rectangle(test_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                            label = f"{det['class']} {det['confidence']:.2f}"
+                            cv2.putText(test_img, label, (x1, max(20, y1 - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                    cv2.imwrite("/config/annotated_test_yolov8.jpg", test_img)
+                    logger.info("DIAGNOSTIC - Saved annotated test image to /config/annotated_test_yolov8.jpg")
+                else:
+                    logger.warning(f"DIAGNOSTIC - Failed to load {test_img_path}")
         except Exception as e:
             logger.error(f"Failed to load RKNN model: {e}")
             raise
@@ -412,6 +439,11 @@ class RKNNYOLOv8Detector(DetectorBackend):
                 y1 = (y1 - dh) / ratio
                 x2 = (x2 - dw) / ratio
                 y2 = (y2 - dh) / ratio
+
+                # Exclude detections that fall heavily in the letterbox padding areas
+                # (a small margin of 15 pixels is allowed for border-crossing detections)
+                if x1 < -15.0 or y1 < -15.0 or x2 > width + 15.0 or y2 > height + 15.0:
+                    continue
 
                 cls_id = int(cls_id)
                 class_name = COCO_CLASSES[cls_id] if cls_id < len(COCO_CLASSES) else f"unknown-{cls_id}"

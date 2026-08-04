@@ -143,42 +143,24 @@ def nms_boxes(boxes, scores, nms_thresh):
     areas = w * h
     order = scores.argsort()[::-1]
     
-    # Weighted NMS: Average boxes that match (fixes low-quantization fragmentation)
     keep = []
-    processed = np.zeros(order.size, dtype=bool)
-    
-    for i in range(order.size):
-        if processed[i]:
-            continue
+    while order.size > 0:
+        i = order[0]
+        keep.append(i)
         
-        idx = order[i]
-        processed[i] = True
+        xx1 = np.maximum(x1[i], x1[order[1:]])
+        yy1 = np.maximum(y1[i], y1[order[1:]])
+        xx2 = np.minimum(x2[i], x2[order[1:]])
+        yy2 = np.minimum(y2[i], y2[order[1:]])
         
-        # Find others that overlap significantly
-        xx1 = np.maximum(x1[idx], x1[order[i+1:]])
-        yy1 = np.maximum(y1[idx], y1[order[i+1:]])
-        xx2 = np.minimum(x2[idx], x2[order[i+1:]])
-        yy2 = np.minimum(y2[idx], y2[order[i+1:]])
         ww = np.maximum(0.0, xx2 - xx1)
         hh = np.maximum(0.0, yy2 - yy1)
-        inter = ww * hh
-        ovr = inter / (areas[idx] + areas[order[i+1:]] - inter + 1e-9)
         
-        match_idx = np.where(ovr > nms_thresh)[0]
-        if match_idx.size > 0:
-            # Weighted average boxes (basic WBF)
-            weights = scores[order[i+1:]][match_idx]
-            weights = weights / (np.sum(weights) + scores[idx])
-            main_weight = scores[idx] / (np.sum(scores[order[i+1:]][match_idx]) + scores[idx])
-            
-            final_box = boxes[idx] * main_weight
-            for m_i, weight in zip(match_idx, weights):
-                final_box += boxes[order[i+1:][m_i]] * weight
-                processed[i + 1 + m_i] = True
-                
-            boxes[idx] = final_box
-            
-        keep.append(idx)
+        inter = ww * hh
+        ovr = inter / (areas[i] + areas[order[1:]] - inter + 1e-9)
+        
+        inds = np.where(ovr <= nms_thresh)[0]
+        order = order[inds + 1]
         
     return np.array(keep, dtype=np.int32)
 
@@ -410,11 +392,12 @@ class RKNNYOLOv8Detector(DetectorBackend):
     highly accurate post-processing formulas from yolo_lite.py.
     """
 
-    def __init__(self, iou_threshold: float = 0.45, box_format: str = "dist", box_scale: float = 4.0):
+    def __init__(self, iou_threshold: float = 0.25, box_format: str = "dist", box_scale: float = 4.0):
         self.rknn = None
         self.iou_threshold = iou_threshold
         self.box_format = box_format
         self.box_scale = box_scale
+        self.debug_saved = False
 
     def load(self, model_path: str):
         """Loads and initializes the RKNN runtime on the Rockchip hardware NPU."""
@@ -428,6 +411,16 @@ class RKNNYOLOv8Detector(DetectorBackend):
             if ret != 0:
                 raise RuntimeError(f"Failed to load RKNN model file. Error code: {ret}")
 
+            # Query and log SDK version and I/O geometry
+            try:
+                sdk_version = self.rknn.get_sdk_version()
+                attrs = dir(self.rknn)
+                with open("/config/model_info.txt", "w") as f:
+                    f.write(f"RKNN Lite SDK Version: {sdk_version}\n")
+                    f.write(f"RKNN Lite Attributes: {attrs}\n")
+            except Exception as ex:
+                logger.warning(f"Could not query model info: {ex}")
+
             # Allocate runtime memory and lock co-processor driver contexts
             from config import Config
             core_mask = getattr(Config, "RKNN_CORE_MASK", 0)
@@ -435,7 +428,32 @@ class RKNNYOLOv8Detector(DetectorBackend):
             if ret != 0:
                 raise RuntimeError(f"Failed to initialize RKNN co-processor context. Error code: {ret}")
 
-            logger.info("RKNN co-processor successfully initialized on Rockchip hardware NPU.")
+            # One-off test on startup if test_image.jpg exists
+            import os
+            test_img_path = "/config/test_image.jpg"
+            if os.path.exists(test_img_path):
+                logger.info(f"DIAGNOSTIC - Running one-off test on {test_img_path}...")
+                test_img_orig = cv2.imread(test_img_path)
+                if test_img_orig is not None:
+                    # Run detect on the test image
+                    res = self.detect(test_img_orig, conf_threshold=0.25)
+                    # Draw detections
+                    if res and "detections" in res:
+                        logger.info(f"DIAGNOSTIC - Test image detections: {res['detections']}")
+                        for det in res["detections"]:
+                            x1_n, y1_n, x2_n, y2_n = det["bbox"]
+                            h_img, w_img, _ = test_img_orig.shape
+                            x1 = int(x1_n * w_img)
+                            y1 = int(y1_n * h_img)
+                            x2 = int(x2_n * w_img)
+                            y2 = int(y2_n * h_img)
+                            cv2.rectangle(test_img_orig, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                            label = f"{det['class']} {det['confidence']:.2f}"
+                            cv2.putText(test_img_orig, label, (x1, max(20, y1 - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+                    cv2.imwrite("/config/annotated_test.jpg", test_img_orig)
+                    logger.info("DIAGNOSTIC - Saved /config/annotated_test.jpg")
+                else:
+                    logger.warning(f"DIAGNOSTIC - Failed to load {test_img_path}")
         except Exception as e:
             logger.error(f"Failed to load RKNN model: {e}")
             raise
@@ -451,6 +469,15 @@ class RKNNYOLOv8Detector(DetectorBackend):
 
         # 1. Letterbox the frame to the model's expected input size (640x640)
         letterboxed_frame, ratio, (dw, dh) = letterbox(frame, new_shape=(640, 640))
+
+        # Save first frame for debugging input correctness
+        if not self.debug_saved:
+            self.debug_saved = True
+            try:
+                cv2.imwrite("/config/debug_input.jpg", letterboxed_frame)
+                logger.info("DIAGNOSTIC - Saved first letterboxed frame to /config/debug_input.jpg")
+            except Exception as ex:
+                logger.warning(f"DIAGNOSTIC - Failed to save debug frame: {ex}")
 
         # 2. Colorspace conversion
         # GStreamer reads in BGR; native model was compiled for RGB
@@ -504,6 +531,11 @@ class RKNNYOLOv8Detector(DetectorBackend):
                 y1 = (y1 - dh) / ratio
                 x2 = (x2 - dw) / ratio
                 y2 = (y2 - dh) / ratio
+
+                # Exclude detections that fall heavily in the letterbox padding areas
+                # (a small margin of 15 pixels is allowed for border-crossing detections)
+                if x1 < -15.0 or y1 < -15.0 or x2 > width + 15.0 or y2 > height + 15.0:
+                    continue
 
                 cls_id = int(cls_id)
                 class_name = COCO_CLASSES[cls_id] if cls_id < len(COCO_CLASSES) else f"unknown-{cls_id}"

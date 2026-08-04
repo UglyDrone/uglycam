@@ -3,6 +3,7 @@ import signal
 import sys
 import threading
 import time
+import cv2
 
 from config import Config, setup_logging
 from gst_capture import GStreamerCapture
@@ -146,12 +147,29 @@ class EdgeAIWorker:
 
                 # Only publish telemetry if target objects are detected and publishing is enabled
                 if detections and Config.PUBLISH_DETECTIONS:
-                    # Capture latency is current wall-clock minus capture timestamp
-                    transport_latency = time.time() - timestamp
-                    logger.debug(
-                        f"Detected {len(detections)} targets in {processing_time * 1000:.1f}ms. "
-                        f"Total pipe latency (capture->infer): {transport_latency * 1000:.1f}ms"
+                    logger.info(
+                        f"Detected {len(detections)} targets in {processing_time * 1000:.1f}ms: "
+                        f"{[(d['class'], d['confidence']) for d in detections]}"
                     )
+                    
+                    # Periodically save annotated live frame (every 10 seconds) for verification
+                    if not hasattr(self, "_last_save_time"):
+                        self._last_save_time = 0
+                    if time.time() - self._last_save_time >= 10.0:
+                        self._last_save_time = time.time()
+                        annotated_frame = frame.copy()
+                        for det in detections:
+                            x1_n, y1_n, x2_n, y2_n = det["bbox"]
+                            h_img, w_img, _ = annotated_frame.shape
+                            x1 = int(x1_n * w_img)
+                            y1 = int(y1_n * h_img)
+                            x2 = int(x2_n * w_img)
+                            y2 = int(y2_n * h_img)
+                            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                            label = f"{det['class']} {det['confidence']:.2f}"
+                            cv2.putText(annotated_frame, label, (x1, max(20, y1 - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                        cv2.imwrite("/config/debug_live_yolov8.jpg", annotated_frame)
+                        logger.info("Saved debug live frame to /config/debug_live_yolov8.jpg")
                     
                     self.mqtt_client.publish_detections(
                         topic=Config.MQTT_TOPIC,

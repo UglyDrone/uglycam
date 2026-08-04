@@ -144,42 +144,24 @@ def nms_boxes(boxes, scores, nms_thresh):
     areas = w * h
     order = scores.argsort()[::-1]
     
-    # Weighted NMS: Average boxes that match (fixes low-quantization fragmentation)
     keep = []
-    processed = np.zeros(order.size, dtype=bool)
-    
-    for i in range(order.size):
-        if processed[i]:
-            continue
+    while order.size > 0:
+        i = order[0]
+        keep.append(i)
         
-        idx = order[i]
-        processed[i] = True
+        xx1 = np.maximum(x1[i], x1[order[1:]])
+        yy1 = np.maximum(y1[i], y1[order[1:]])
+        xx2 = np.minimum(x2[i], x2[order[1:]])
+        yy2 = np.minimum(y2[i], y2[order[1:]])
         
-        # Find others that overlap significantly
-        xx1 = np.maximum(x1[idx], x1[order[i+1:]])
-        yy1 = np.maximum(y1[idx], y1[order[i+1:]])
-        xx2 = np.minimum(x2[idx], x2[order[i+1:]])
-        yy2 = np.minimum(y2[idx], y2[order[i+1:]])
         ww = np.maximum(0.0, xx2 - xx1)
         hh = np.maximum(0.0, yy2 - yy1)
-        inter = ww * hh
-        ovr = inter / (areas[idx] + areas[order[i+1:]] - inter + 1e-9)
         
-        match_idx = np.where(ovr > nms_thresh)[0]
-        if match_idx.size > 0:
-            # Weighted average boxes (basic WBF)
-            weights = scores[order[i+1:]][match_idx]
-            weights = weights / (np.sum(weights) + scores[idx])
-            main_weight = scores[idx] / (np.sum(scores[order[i+1:]][match_idx]) + scores[idx])
-            
-            final_box = boxes[idx] * main_weight
-            for m_i, weight in zip(match_idx, weights):
-                final_box += boxes[order[i+1:][m_i]] * weight
-                processed[i + 1 + m_i] = True
-                
-            boxes[idx] = final_box
-            
-        keep.append(idx)
+        inter = ww * hh
+        ovr = inter / (areas[i] + areas[order[1:]] - inter + 1e-9)
+        
+        inds = np.where(ovr <= nms_thresh)[0]
+        order = order[inds + 1]
         
     return np.array(keep, dtype=np.int32)
 
@@ -411,7 +393,7 @@ class RKNNYOLOv8Detector(DetectorBackend):
     highly accurate post-processing formulas from yolo_lite.py.
     """
 
-    def __init__(self, iou_threshold: float = 0.45, box_format: str = "dist", box_scale: float = 4.0):
+    def __init__(self, iou_threshold: float = 0.25, box_format: str = "dist", box_scale: float = 4.0):
         self.rknn = None
         self.iou_threshold = iou_threshold
         self.box_format = box_format
@@ -485,6 +467,11 @@ class RKNNYOLOv8Detector(DetectorBackend):
                 y1 = (y1 - dh) / ratio
                 x2 = (x2 - dw) / ratio
                 y2 = (y2 - dh) / ratio
+
+                # Exclude detections that fall heavily in the letterbox padding areas
+                # (a small margin of 15 pixels is allowed for border-crossing detections)
+                if x1 < -15.0 or y1 < -15.0 or x2 > width + 15.0 or y2 > height + 15.0:
+                    continue
 
                 cls_id = int(cls_id)
                 class_name = COCO_CLASSES[cls_id] if cls_id < len(COCO_CLASSES) else f"unknown-{cls_id}"
