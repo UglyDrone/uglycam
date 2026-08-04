@@ -356,6 +356,88 @@ services:
       - "camera-id=cam0"
       - "cam-ai-npu=npu2"
 
+  # Edge AI Worker for Camera 0 (YOLOv26 Vehicles Custom Dataset - NPU Core 1)
+  cam-ai-yolo26-vehicles-cam0-npu1:
+    build:
+      context: ./cam-ai-yolo26-vehicles
+      dockerfile: Dockerfile
+    image: cam-ai-yolo26-vehicles:latest
+    container_name: cam-ai-yolo26-vehicles-cam0-npu1
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    privileged: true
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp
+      - /proc/device-tree:/proc/device-tree:ro
+      - ./config:/config
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mpp:/dev/mpp
+      - /dev/rga:/dev/rga
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/yolo26n-rk3588.rknn
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=1
+      - MQTT_TOPIC=/cam0/detections/npu1
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=yolo26-vehicles"
+      - "camera-id=cam0"
+      - "cam-ai-npu=npu1"
+
+  # Edge AI Worker for Camera 0 (YOLOv26 Vehicles Custom Dataset - NPU Core 2)
+  cam-ai-yolo26-vehicles-cam0-npu2:
+    build:
+      context: ./cam-ai-yolo26-vehicles
+      dockerfile: Dockerfile
+    image: cam-ai-yolo26-vehicles:latest
+    container_name: cam-ai-yolo26-vehicles-cam0-npu2
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    privileged: true
+    depends_on:
+      - mosquitto
+    volumes:
+      - /tmp:/tmp
+      - /proc/device-tree:/proc/device-tree:ro
+      - ./config:/config
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mpp:/dev/mpp
+      - /dev/rga:/dev/rga
+    environment:
+      - CAMERA_ID=cam0
+      - SHM_PATH=/tmp/cam0_ai
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=360
+      - FRAME_FPS=5
+      - MODEL_PATH=models/yolo26n-rk3588.rknn
+      - CONF_THRESHOLD=0.25
+      - MQTT_HOST=127.0.0.1
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+      - RKNN_CORE_MASK=2
+      - MQTT_TOPIC=/cam0/detections/npu2
+    labels:
+      - "cam-ai-type=worker"
+      - "cam-ai-model=yolo26-vehicles"
+      - "camera-id=cam0"
+      - "cam-ai-npu=npu2"
+
   # Edge AI Worker for Camera 0 (LPRNet - NPU Core 1)
   cam-ai-lprnet-cam0-npu1:
     build:
