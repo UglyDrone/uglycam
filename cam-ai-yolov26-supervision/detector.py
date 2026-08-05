@@ -355,13 +355,9 @@ def post_process_yolov8(outputs, input_size=640, obj_thresh=0.25, nms_thresh=0.4
 # Letterboxing Helper for Arbitrary Resolution Input
 # -------------------------------------------------------------
 
-def letterbox(img, new_shape=(640, 640), color=(114, 114, 114)):
+def letterbox(img, new_shape=(640, 640), color=(0, 0, 0)):
     """
     Resizes and pads image to new_shape while preserving aspect ratio.
-    Returns:
-        padded_img: the padded and resized image
-        ratio: scale ratio used
-        (dw, dh): padding added on left/right and top/bottom
     """
     shape = img.shape[:2]  # current shape [height, width]
     if isinstance(new_shape, int):
