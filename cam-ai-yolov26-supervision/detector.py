@@ -207,12 +207,6 @@ def post_process_yolo_single_tensor(outputs, input_size=640, obj_thresh=0.25, nm
     boxes = []
     for idx in keep:
         cx, cy, w, h = bboxes[idx]
-        
-        # If prediction comes from Stride 16 (6400..7999) or Stride 32 (8000..8399) and is unscaled
-        if idx >= 6400:
-            # Skip un-anchored duplicate stride predictions
-            continue
-            
         x1 = cx - w / 2
         y1 = cy - h / 2
         x2 = cx + w / 2
@@ -544,9 +538,8 @@ class RKNNYOLOv8Detector(DetectorBackend):
                 x2 = (x2 - dw) / ratio
                 y2 = (y2 - dh) / ratio
 
-                # Exclude detections that fall heavily in the letterbox padding areas
-                # (a small margin of 15 pixels is allowed for border-crossing detections)
-                if x1 < -15.0 or y1 < -15.0 or x2 > width + 15.0 or y2 > height + 15.0:
+                # Exclude detections that fall inside the letterbox padding margins
+                if x1 < -10.0 or y1 < -10.0 or x2 > width + 10.0 or y2 > height + 10.0:
                     continue
 
                 cls_id = int(cls_id)

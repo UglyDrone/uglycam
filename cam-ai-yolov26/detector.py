@@ -205,11 +205,6 @@ def post_process_yolo_single_tensor(outputs, input_size=640, obj_thresh=0.25, nm
     boxes = []
     for idx in keep:
         cx, cy, w, h = bboxes[idx]
-        
-        # Skip un-anchored Stride 16 (6400..7999) and Stride 32 (8000..8399) duplicate predictions
-        if idx >= 6400:
-            continue
-            
         x1 = cx - w / 2
         y1 = cy - h / 2
         x2 = cx + w / 2

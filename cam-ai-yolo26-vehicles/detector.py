@@ -197,11 +197,6 @@ def post_process_yolo_single_tensor(outputs, input_size=640, obj_thresh=0.25, nm
     boxes = []
     for idx in keep:
         cx, cy, w, h = bboxes[idx]
-        
-        # Skip un-anchored Stride 16 (6400..7999) and Stride 32 (8000..8399) duplicate predictions
-        if idx >= 6400:
-            continue
-            
         x1 = cx - w / 2
         y1 = cy - h / 2
         x2 = cx + w / 2
@@ -526,7 +521,6 @@ class RKNNYOLOv8Detector(DetectorBackend):
 
             for box, cls_id, sc in zip(boxes, classes, scores):
                 x1, y1, x2, y2 = [float(v) for v in box]
-                logger.info(f"DIAGNOSTIC COORDS - Frame ({width}x{height}), dw={dw}, dh={dh}, ratio={ratio}. Raw box: [{x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}]")
 
                 # Map coordinates back to original frame size (before letterboxing)
                 x1 = (x1 - dw) / ratio
@@ -534,9 +528,8 @@ class RKNNYOLOv8Detector(DetectorBackend):
                 x2 = (x2 - dw) / ratio
                 y2 = (y2 - dh) / ratio
 
-                # Exclude detections that fall heavily in the letterbox padding areas
-                # (a small margin of 15 pixels is allowed for border-crossing detections)
-                if x1 < -15.0 or y1 < -15.0 or x2 > width + 15.0 or y2 > height + 15.0:
+                # Exclude detections that fall inside the letterbox padding margins
+                if x1 < -10.0 or y1 < -10.0 or x2 > width + 10.0 or y2 > height + 10.0:
                     continue
 
                 cls_id = int(cls_id)
