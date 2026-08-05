@@ -411,12 +411,11 @@ class RKNNYOLOv8Detector(DetectorBackend):
         # GStreamer reads in BGR; native model was compiled for RGB
         rgb_frame = cv2.cvtColor(letterboxed_frame, cv2.COLOR_BGR2RGB)
 
-        # 3. Add batch dimension and convert to NCHW as expected by standard RKNN INT8 models
-        nchw = np.transpose(rgb_frame, (2, 0, 1))
-        nchw = np.expand_dims(nchw, 0).astype(np.uint8)
+        # 3. Add batch dimension (1, 640, 640, 3) NHWC
+        nhwc = np.expand_dims(rgb_frame, 0).astype(np.uint8)
 
         # 4. Run hardware inference
-        outputs = self.rknn.inference(inputs=[nchw])
+        outputs = self.rknn.inference(inputs=[nhwc])
 
         # 5. Apply battle-tested YOLOv8 NPU postprocessing
         pp = post_process_yolov8(
