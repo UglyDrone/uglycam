@@ -56,7 +56,7 @@ services:
       - FRAME_WIDTH=640
       - FRAME_HEIGHT=360
       - FRAME_FPS=5
-      - MODEL_PATH=models/yolov8.rknn # Standard compiled Rockchip RKNN model weight file
+      - MODEL_PATH=/config/yolov8m.rknn # Standard compiled Rockchip RKNN model weight file
       - CONF_THRESHOLD=0.25
       - MQTT_HOST=127.0.0.1           # Connects directly to Mosquitto on the shared host network namespace
       - MQTT_PORT=1883
@@ -97,7 +97,7 @@ services:
       - FRAME_WIDTH=640
       - FRAME_HEIGHT=360
       - FRAME_FPS=5
-      - MODEL_PATH=models/yolov8.rknn
+      - MODEL_PATH=/config/yolov8m.rknn
       - CONF_THRESHOLD=0.25
       - MQTT_HOST=127.0.0.1
       - MQTT_PORT=1883
