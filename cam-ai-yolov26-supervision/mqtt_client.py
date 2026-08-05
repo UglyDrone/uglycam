@@ -24,6 +24,8 @@ class MQTTClientWrapper:
         client_id = f"cam_ai_worker_{self.camera_id}{npu_slot}_{hostname}"
         self.client = mqtt.Client(client_id=client_id)
         
+        self.connected = False
+        
         # Assign event callbacks
         self.client.on_connect = self._on_connect
         self.client.on_disconnect = self._on_disconnect
@@ -55,10 +57,10 @@ class MQTTClientWrapper:
         t = threading.Thread(target=connection_worker, name="MQTTConnectThread", daemon=True)
         t.start()
 
-
     def stop(self):
         """Cleanly stops network thread and disconnects from broker."""
         logger.info("Stopping MQTT background client...")
+        self.connected = False
         self.client.loop_stop()
         self.client.disconnect()
         logger.info("MQTT Client shut down.")
@@ -68,8 +70,7 @@ class MQTTClientWrapper:
         Publishes detections to MQTT in a standardized format.
         Fails fast if connection is not ready.
         """
-        if not detections:
-            # Requirements: "Publish only when detections exist."
+        if not self.connected or not detections:
             return
 
         payload = {
@@ -82,10 +83,8 @@ class MQTTClientWrapper:
 
         try:
             payload_str = json.dumps(payload)
-            # Publish with QoS 0, retained=false
             info = self.client.publish(topic, payload_str, qos=0, retain=False)
-            
-            if info.rc != mqtt.MQTT_ERR_SUCCESS:
+            if info.rc != mqtt.MQTT_ERR_SUCCESS and self.connected:
                 logger.error(
                     f"MQTT Publish failed with error code: {info.rc} ({mqtt.error_string(info.rc)})"
                 )
@@ -94,17 +93,20 @@ class MQTTClientWrapper:
 
     def _on_connect(self, client, userdata, flags, rc):
         if rc == 0:
+            self.connected = True
             logger.info("Successfully connected to MQTT Broker.")
         else:
+            self.connected = False
             logger.error(
                 f"Failed to connect to MQTT Broker. Reason code: {rc} ({mqtt.connack_string(rc)})"
             )
 
     def _on_disconnect(self, client, userdata, rc):
+        self.connected = False
         if rc != 0:
             logger.warning(f"Unexpectedly disconnected from MQTT broker. Code: {rc}. Auto-reconnect active.")
         else:
-            logger.info("Disconnected from MQTT Broker.")
+            logger.info("Disconnected from MQTT broker.")
 
     def _on_publish(self, client, userdata, mid):
         # Callback when a message has been successfully sent to the socket
