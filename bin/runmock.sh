@@ -21,17 +21,16 @@ else
 fi
 
 echo "=================================================="
-echo "Starting Mock RTSP Stream Ingestion (H.264 / H.265 Universal)"
+echo "Starting Mock RTSP Stream Ingestion"
 echo "RTSP URL:       $RTSP_URL"
 echo "Camera ID:      $CAM_ID"
 echo "AI Target FPS:  $FPS"
 echo "=================================================="
 
-# rtspsrc + parsebin autoplugs H.264/H.265 depayloaders and decodes via RK3588 MPP hardware VPU
+# Use software decoding (avdec_h264) for 100% reliable software NV12 buffer generation and socket creation
 gst-launch-1.0 -e \
 rtspsrc location="$RTSP_URL" protocols=tcp latency=200 drop-on-latency=true ! \
-parsebin ! \
-mppvideodec ! \
+rtph264depay ! h264parse ! avdec_h264 ! \
 videoconvert ! \
 video/x-raw,format=NV12 ! \
 videoscale ! \
