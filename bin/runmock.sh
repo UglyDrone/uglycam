@@ -21,7 +21,7 @@ else
 fi
 
 echo "=================================================="
-echo "Starting Mock RTSP Stream Ingestion"
+echo "Starting Mock RTSP Stream Ingestion (2-Sink Test)"
 echo "RTSP URL:       $RTSP_URL"
 echo "Camera ID:      $CAM_ID"
 echo "AI Target FPS:  $FPS"
@@ -46,13 +46,5 @@ videorate ! video/x-raw,framerate=${FPS}/1 ! \
 videoscale ! \
 video/x-raw,format=NV12,width=640,height=360 ! \
 shmsink socket-path=/tmp/${CAM_ID}_ai \
-wait-for-connection=false sync=false \
-shm-size=67108864 \
-\
-t0. ! queue max-size-buffers=4 leaky=downstream ! \
-videorate ! video/x-raw,framerate=${FPS}/1 ! \
-videoscale ! \
-video/x-raw,format=NV12,width=640,height=360 ! \
-shmsink socket-path=/tmp/${CAM_ID}_ai_rtsp \
 wait-for-connection=false sync=false \
 shm-size=67108864
