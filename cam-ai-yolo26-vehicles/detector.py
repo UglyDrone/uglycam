@@ -463,13 +463,10 @@ class RKNNYOLOv8Detector(DetectorBackend):
         # 1. Resize frame to model's expected input size (640x640)
         resized_frame = cv2.resize(frame, (640, 640), interpolation=cv2.INTER_LINEAR)
 
-        # 2. Colorspace conversion BGR to RGB
-        rgb_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
+        # 2. Add batch dimension (1, 640, 640, 3) NHWC in native BGR format
+        nhwc = np.expand_dims(resized_frame, 0).astype(np.uint8)
 
-        # 3. Add batch dimension (1, 640, 640, 3) NHWC as required by rknnlite
-        nhwc = np.expand_dims(rgb_frame, 0).astype(np.uint8)
-
-        # 4. Run hardware inference
+        # 3. Run hardware inference
         outputs = self.rknn.inference(inputs=[nhwc])
 
         # 5. Apply battle-tested YOLOv8 NPU postprocessing
