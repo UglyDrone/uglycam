@@ -21,16 +21,16 @@ else
 fi
 
 echo "=================================================="
-echo "Starting Mock RTSP Stream Ingestion"
+echo "Starting Mock RTSP Stream Ingestion (H.265 / HEVC)"
 echo "RTSP URL:       $RTSP_URL"
 echo "Camera ID:      $CAM_ID"
 echo "AI Target FPS:  $FPS"
 echo "=================================================="
 
-# Use software decoding (avdec_h264) for 100% reliable software NV12 buffer generation and socket creation
+# Use H.265 depayloader and decoder for Hikvision H.265 NVR streams
 gst-launch-1.0 -e \
 rtspsrc location="$RTSP_URL" protocols=tcp latency=200 drop-on-latency=true ! \
-rtph264depay ! h264parse ! avdec_h264 ! \
+rtph265depay ! h265parse ! avdec_h265 ! \
 videoconvert ! \
 video/x-raw,format=NV12 ! \
 videoscale ! \
