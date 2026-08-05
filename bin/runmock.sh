@@ -21,15 +21,16 @@ else
 fi
 
 echo "=================================================="
-echo "Starting Mock RTSP Stream Ingestion"
+echo "Starting Mock RTSP Stream Ingestion (TCP Mode)"
 echo "RTSP URL:       $RTSP_URL"
 echo "Camera ID:      $CAM_ID"
 echo "AI Target FPS:  $FPS"
 echo "=================================================="
 
-# Use urisourcebin for automatic RTSP handling, RTP depayloading, and decoding
+# Use rtspsrc with protocols=tcp for interleaved TCP streaming (bypasses UDP firewall drops)
 gst-launch-1.0 -e \
-urisourcebin uri="$RTSP_URL" buffer-duration=200000000 ! \
+rtspsrc location="$RTSP_URL" protocols=tcp latency=200 drop-on-latency=true ! \
+decodebin ! \
 videoconvert ! \
 video/x-raw,format=NV12 ! \
 videoscale ! \
