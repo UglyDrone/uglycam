@@ -21,7 +21,7 @@ else
 fi
 
 echo "=================================================="
-echo "Starting Mock RTSP Stream Ingestion (2-Sink Test)"
+echo "Starting Mock RTSP Stream Ingestion"
 echo "RTSP URL:       $RTSP_URL"
 echo "Camera ID:      $CAM_ID"
 echo "AI Target FPS:  $FPS"
@@ -32,8 +32,6 @@ rtspsrc location="$RTSP_URL" protocols=tcp latency=200 drop-on-latency=true ! \
 decodebin ! \
 videoconvert ! \
 video/x-raw,format=NV12 ! \
-videoscale ! \
-video/x-raw,width=1920,height=1080 ! \
 tee name=t0 \
 \
 t0. ! queue max-size-buffers=4 leaky=downstream ! \
