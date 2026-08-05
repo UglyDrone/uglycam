@@ -460,16 +460,16 @@ class RKNNYOLOv8Detector(DetectorBackend):
 
         height, width, _ = frame.shape
 
-        # 1. Resize frame to model's expected input size (640x640)
-        resized_frame = cv2.resize(frame, (640, 640), interpolation=cv2.INTER_LINEAR)
+        # 1. Letterbox frame to model's expected 640x640 input grid
+        letterboxed_frame, ratio, (dw, dh) = letterbox(frame, new_shape=(640, 640))
 
         # 2. Add batch dimension (1, 640, 640, 3) NHWC in native BGR format
-        nhwc = np.expand_dims(resized_frame, 0).astype(np.uint8)
+        nhwc = np.expand_dims(letterboxed_frame, 0).astype(np.uint8)
 
         # 3. Run hardware inference
         outputs = self.rknn.inference(inputs=[nhwc])
 
-        # 5. Apply battle-tested YOLOv8 NPU postprocessing
+        # 4. Apply battle-tested YOLOv8 NPU postprocessing
         pp = post_process_yolov8(
             outputs,
             input_size=640,
@@ -485,7 +485,6 @@ class RKNNYOLOv8Detector(DetectorBackend):
         if pp is not None:
             boxes, classes, scores = pp
 
-            # Incorporate Roboflow Supervision
             try:
                 import supervision as sv
                 sv_dets = sv.Detections(
@@ -505,14 +504,24 @@ class RKNNYOLOv8Detector(DetectorBackend):
             for box, cls_id, sc in zip(boxes, classes, scores):
                 x1, y1, x2, y2 = [float(v) for v in box]
 
+                # Map coordinates back from letterboxed grid to original image frame
+                x1_unpad = (x1 - dw) / ratio
+                y1_unpad = (y1 - dh) / ratio
+                x2_unpad = (x2 - dw) / ratio
+                y2_unpad = (y2 - dh) / ratio
+
+                # Exclude false positive candidates falling outside valid image canvas
+                if x1_unpad < -15.0 or y1_unpad < -15.0 or x2_unpad > width + 15.0 or y2_unpad > height + 15.0:
+                    continue
+
                 cls_id = int(cls_id)
                 class_name = COCO_CLASSES[cls_id] if cls_id < len(COCO_CLASSES) else f"unknown-{cls_id}"
 
-                # Normalize directly to [0.0, 1.0] from 640x640 model grid
-                x1_norm = round(max(0.0, min(640.0, x1)) / 640.0, 4)
-                y1_norm = round(max(0.0, min(640.0, y1)) / 640.0, 4)
-                x2_norm = round(max(0.0, min(640.0, x2)) / 640.0, 4)
-                y2_norm = round(max(0.0, min(640.0, y2)) / 640.0, 4)
+                # Normalize un-letterboxed coordinates directly to [0.0, 1.0]
+                x1_norm = round(max(0.0, min(float(width), x1_unpad)) / float(width), 4)
+                y1_norm = round(max(0.0, min(float(height), y1_unpad)) / float(height), 4)
+                x2_norm = round(max(0.0, min(float(width), x2_unpad)) / float(width), 4)
+                y2_norm = round(max(0.0, min(float(height), y2_unpad)) / float(height), 4)
 
                 detections.append({
                     "class": class_name,
