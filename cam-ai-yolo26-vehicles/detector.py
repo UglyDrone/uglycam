@@ -455,31 +455,18 @@ class RKNNYOLOv8Detector(DetectorBackend):
             raise
 
     def detect(self, frame: np.ndarray, conf_threshold: float) -> dict:
-        """
-        Runs co-processor NPU inference and parses outputs using integrated math helpers.
-        """
         if self.rknn is None:
             raise RuntimeError("RKNN runtime is not initialized. Call load() first.")
 
         height, width, _ = frame.shape
 
-        # 1. Letterbox the frame to the model's expected input size (640x640)
-        letterboxed_frame, ratio, (dw, dh) = letterbox(frame, new_shape=(640, 640))
+        # 1. Resize frame to model's expected input size (640x640)
+        resized_frame = cv2.resize(frame, (640, 640), interpolation=cv2.INTER_LINEAR)
 
-        # Save first frame for debugging input correctness
-        if not self.debug_saved:
-            self.debug_saved = True
-            try:
-                cv2.imwrite("/config/debug_input.jpg", letterboxed_frame)
-                logger.info("DIAGNOSTIC - Saved first letterboxed frame to /config/debug_input.jpg")
-            except Exception as ex:
-                logger.warning(f"DIAGNOSTIC - Failed to save debug frame: {ex}")
+        # 2. Colorspace conversion BGR to RGB
+        rgb_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
 
-        # 2. Colorspace conversion
-        # GStreamer reads in BGR; native model was compiled for RGB
-        rgb_frame = cv2.cvtColor(letterboxed_frame, cv2.COLOR_BGR2RGB)
-
-        # 3. Add batch dimension and convert to NCHW as expected by standard RKNN INT8 models
+        # 3. Add batch dimension and convert to NCHW
         nchw = np.transpose(rgb_frame, (2, 0, 1))
         nchw = np.expand_dims(nchw, 0).astype(np.uint8)
 
@@ -522,24 +509,14 @@ class RKNNYOLOv8Detector(DetectorBackend):
             for box, cls_id, sc in zip(boxes, classes, scores):
                 x1, y1, x2, y2 = [float(v) for v in box]
 
-                # Map coordinates back to original frame size (before letterboxing)
-                x1 = (x1 - dw) / ratio
-                y1 = (y1 - dh) / ratio
-                x2 = (x2 - dw) / ratio
-                y2 = (y2 - dh) / ratio
-
-                # Exclude detections that fall inside the letterbox padding margins
-                if x1 < -10.0 or y1 < -10.0 or x2 > width + 10.0 or y2 > height + 10.0:
-                    continue
-
                 cls_id = int(cls_id)
                 class_name = COCO_CLASSES[cls_id] if cls_id < len(COCO_CLASSES) else f"unknown-{cls_id}"
 
-                # Bound coordinates inside frame parameters and normalize to [0.0, 1.0]
-                x1_norm = round(max(0.0, x1) / width, 4)
-                y1_norm = round(max(0.0, y1) / height, 4)
-                x2_norm = round(min(float(width), x2) / width, 4)
-                y2_norm = round(min(float(height), y2) / height, 4)
+                # Normalize directly to [0.0, 1.0] from 640x640 model grid
+                x1_norm = round(max(0.0, min(640.0, x1)) / 640.0, 4)
+                y1_norm = round(max(0.0, min(640.0, y1)) / 640.0, 4)
+                x2_norm = round(max(0.0, min(640.0, x2)) / 640.0, 4)
+                y2_norm = round(max(0.0, min(640.0, y2)) / 640.0, 4)
 
                 detections.append({
                     "class": class_name,
