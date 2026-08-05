@@ -55,6 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Setup Canvas dynamic resizing
     window.addEventListener('resize', resizeCanvas);
+    const vFeed = document.getElementById('videoFeed');
+    if (vFeed) vFeed.addEventListener('load', resizeCanvas);
     resizeCanvas();
 });
 
@@ -292,8 +294,11 @@ function animateTempProgressBar(barId, valId, value) {
 
 // Bounding Box High-DPI Canvas overlay scaling
 function resizeCanvas() {
-    const rect = bboxCanvas.parentElement.getBoundingClientRect();
+    const feed = document.getElementById('videoFeed');
+    const rect = (feed && feed.clientWidth > 0) ? feed.getBoundingClientRect() : bboxCanvas.parentElement.getBoundingClientRect();
     
+    if (!rect.width || !rect.height) return;
+
     // Scale for high resolution rendering
     const dpr = window.devicePixelRatio || 1;
     bboxCanvas.width = rect.width * dpr;
@@ -302,6 +307,7 @@ function resizeCanvas() {
     bboxCanvas.style.width = `${rect.width}px`;
     bboxCanvas.style.height = `${rect.height}px`;
     
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
 }
 
