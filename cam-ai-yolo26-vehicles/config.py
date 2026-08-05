@@ -16,7 +16,7 @@ class Config:
     
     # AI Inference Settings
     MODEL_PATH = os.getenv("MODEL_PATH", "models/yolo26n-rk3588.rknn")
-    CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.25"))
+    CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.45"))
     RKNN_CORE_MASK = int(os.getenv("RKNN_CORE_MASK", "0"))
     
     # MQTT Telemetry Settings
