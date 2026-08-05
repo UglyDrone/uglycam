@@ -50,9 +50,9 @@ wait-for-connection=false sync=false \
 shm-size=67108864 \
 \
 t0. ! queue max-size-buffers=4 leaky=downstream ! \
-videoconvert ! video/x-raw,format=I420 ! \
-videoscale ! video/x-raw,width=640,height=360 ! \
-videoconvert ! video/x-raw,format=NV12 ! \
+videorate ! video/x-raw,framerate=${FPS}/1 ! \
+videoscale ! \
+video/x-raw,format=NV12,width=640,height=360 ! \
 shmsink socket-path=/tmp/${CAM_ID}_ai_rtsp \
-  wait-for-connection=false sync=false \
-  shm-size=67108864
+wait-for-connection=false sync=false \
+shm-size=67108864
