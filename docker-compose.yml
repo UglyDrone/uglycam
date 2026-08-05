@@ -302,7 +302,7 @@ services:
       - FRAME_WIDTH=640
       - FRAME_HEIGHT=360
       - FRAME_FPS=5
-      - MODEL_PATH=models/yolo26n-rk3588.rknn
+      - MODEL_PATH=/config/yolov8m.rknn
       - CONF_THRESHOLD=0.25
       - MQTT_HOST=127.0.0.1
       - MQTT_PORT=1883
@@ -343,7 +343,7 @@ services:
       - FRAME_WIDTH=640
       - FRAME_HEIGHT=360
       - FRAME_FPS=5
-      - MODEL_PATH=models/yolo26n-rk3588.rknn
+      - MODEL_PATH=/config/yolov8m.rknn
       - CONF_THRESHOLD=0.25
       - MQTT_HOST=127.0.0.1
       - MQTT_PORT=1883
@@ -384,7 +384,7 @@ services:
       - FRAME_WIDTH=640
       - FRAME_HEIGHT=360
       - FRAME_FPS=5
-      - MODEL_PATH=models/yolo26n-rk3588.rknn
+      - MODEL_PATH=/config/yolov8m.rknn
       - CONF_THRESHOLD=0.25
       - MQTT_HOST=127.0.0.1
       - MQTT_PORT=1883
@@ -425,7 +425,7 @@ services:
       - FRAME_WIDTH=640
       - FRAME_HEIGHT=360
       - FRAME_FPS=5
-      - MODEL_PATH=models/yolo26n-rk3588.rknn
+      - MODEL_PATH=/config/yolov8m.rknn
       - CONF_THRESHOLD=0.25
       - MQTT_HOST=127.0.0.1
       - MQTT_PORT=1883
