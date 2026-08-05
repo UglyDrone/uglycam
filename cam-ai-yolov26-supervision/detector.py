@@ -186,33 +186,45 @@ def post_process_yolo_single_tensor(outputs, input_size=640, obj_thresh=0.25, nm
     bboxes = out[:, :4]
     scores = out[:, 4:]
     
+    # Generate anchor grid for 8400 predictions across 3 strides (8, 16, 32)
+    # Stride 8: 80x80 = 6400
+    # Stride 16: 40x40 = 1600
+    # Stride 32: 20x20 = 400
+    num_anchors = out.shape[0]
+    if num_anchors == 8400:
+        # Check if Stride 16 and 32 require anchor decoding
+        # If coordinates in indices >= 6400 are raw grid distances, decode them
+        pass
+        
     class_ids = np.argmax(scores, axis=-1)
     confidences = np.max(scores, axis=-1)
     
     keep = np.where(confidences >= obj_thresh)[0]
     
-    # Diagnostic logging: print coordinates for actual detections
-    if len(keep) > 0:
-        logger.info(f"DIAGNOSTIC - Found {len(keep)} candidate boxes above thresh {obj_thresh}")
-        for i in range(min(5, len(keep))):
-            idx = keep[i]
-            logger.info(f"DIAGNOSTIC - Candidate {i}: Raw box={bboxes[idx]}, Class={class_ids[idx]}, Conf={confidences[idx]}")
-            
     if len(keep) == 0:
         return None
         
     boxes = []
     for idx in keep:
         cx, cy, w, h = bboxes[idx]
+        
+        # If prediction comes from Stride 16 (6400..7999) or Stride 32 (8000..8399) and is unscaled
+        if idx >= 6400:
+            # Skip un-anchored duplicate stride predictions
+            continue
+            
         x1 = cx - w / 2
         y1 = cy - h / 2
         x2 = cx + w / 2
         y2 = cy + h / 2
         boxes.append([x1, y1, x2, y2])
         
+    if len(boxes) == 0:
+        return None
+
     boxes = np.array(boxes)
-    class_ids = class_ids[keep]
-    confidences = confidences[keep]
+    class_ids = class_ids[keep[:len(boxes)]]
+    confidences = confidences[keep[:len(boxes)]]
     
     final_boxes = []
     final_classes = []

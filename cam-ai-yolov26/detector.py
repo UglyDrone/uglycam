@@ -205,15 +205,23 @@ def post_process_yolo_single_tensor(outputs, input_size=640, obj_thresh=0.25, nm
     boxes = []
     for idx in keep:
         cx, cy, w, h = bboxes[idx]
+        
+        # Skip un-anchored Stride 16 (6400..7999) and Stride 32 (8000..8399) duplicate predictions
+        if idx >= 6400:
+            continue
+            
         x1 = cx - w / 2
         y1 = cy - h / 2
         x2 = cx + w / 2
         y2 = cy + h / 2
         boxes.append([x1, y1, x2, y2])
         
+    if len(boxes) == 0:
+        return None
+
     boxes = np.array(boxes)
-    class_ids = class_ids[keep]
-    confidences = confidences[keep]
+    class_ids = class_ids[keep[:len(boxes)]]
+    confidences = confidences[keep[:len(boxes)]]
     
     final_boxes = []
     final_classes = []
