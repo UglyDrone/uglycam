@@ -21,16 +21,16 @@ else
 fi
 
 echo "=================================================="
-echo "Starting Mock RTSP Stream Ingestion (TCP Mode)"
+echo "Starting Mock RTSP Stream Ingestion (RK3588 MPP Hardware Accelerated)"
 echo "RTSP URL:       $RTSP_URL"
 echo "Camera ID:      $CAM_ID"
 echo "AI Target FPS:  $FPS"
 echo "=================================================="
 
-# Use rtspsrc with protocols=tcp for interleaved TCP streaming (bypasses UDP firewall drops)
+# Uses RK3588 MPP Hardware H.264/H.265 VPU decoder (mppvideodec) for zero-latency streaming
 gst-launch-1.0 -e \
-rtspsrc location="$RTSP_URL" protocols=tcp latency=200 drop-on-latency=true ! \
-decodebin ! \
+rtspsrc location="$RTSP_URL" protocols=tcp latency=200 drop-on-latency=true name=src \
+src. ! rtph264depay ! h264parse ! mppvideodec ! \
 videoconvert ! \
 video/x-raw,format=NV12 ! \
 videoscale ! \
