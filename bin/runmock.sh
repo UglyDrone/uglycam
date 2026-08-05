@@ -1,12 +1,12 @@
 #!/bin/sh
 
 # Usage: ./bin/runmock.sh <rtsp_url> [camera_id]
-# Example: ./bin/runmock.sh rtsp://192.168.20.100:554/stream cam0
+# Example: ./bin/runmock.sh rtsp://admin:Q1w2e3r4@hiknvr.allmine.mobi:554/Streaming/Channels/101 cam0
 
 if [ -z "$1" ]; then
   echo "Error: RTSP URL parameter is required."
   echo "Usage: $0 <rtsp_url> [camera_id]"
-  echo "Example: $0 rtsp://192.168.20.100:554/stream cam0"
+  echo "Example: $0 rtsp://admin:password@192.168.20.100:554/stream cam0"
   exit 1
 fi
 
@@ -27,9 +27,9 @@ echo "Camera ID:      $CAM_ID"
 echo "AI Target FPS:  $FPS"
 echo "=================================================="
 
+# Use urisourcebin for automatic RTSP handling, RTP depayloading, and decoding
 gst-launch-1.0 -e \
-rtspsrc location="$RTSP_URL" latency=100 drop-on-latency=true ! \
-decodebin ! \
+urisourcebin uri="$RTSP_URL" buffer-duration=200000000 ! \
 videoconvert ! \
 video/x-raw,format=NV12 ! \
 videoscale ! \
