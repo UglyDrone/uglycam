@@ -21,16 +21,17 @@ else
 fi
 
 echo "=================================================="
-echo "Starting Mock RTSP Stream Ingestion (RK3588 MPP Hardware Accelerated)"
+echo "Starting Mock RTSP Stream Ingestion (H.264 / H.265 Universal)"
 echo "RTSP URL:       $RTSP_URL"
 echo "Camera ID:      $CAM_ID"
 echo "AI Target FPS:  $FPS"
 echo "=================================================="
 
-# Uses RK3588 MPP Hardware H.264/H.265 VPU decoder (mppvideodec) for zero-latency streaming
+# rtspsrc + parsebin autoplugs H.264/H.265 depayloaders and decodes via RK3588 MPP hardware VPU
 gst-launch-1.0 -e \
-rtspsrc location="$RTSP_URL" protocols=tcp latency=200 drop-on-latency=true name=src \
-src. ! rtph264depay ! h264parse ! mppvideodec ! \
+rtspsrc location="$RTSP_URL" protocols=tcp latency=200 drop-on-latency=true ! \
+parsebin ! \
+mppvideodec ! \
 videoconvert ! \
 video/x-raw,format=NV12 ! \
 videoscale ! \
