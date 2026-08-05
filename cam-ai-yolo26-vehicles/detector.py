@@ -518,6 +518,7 @@ class RKNNYOLOv8Detector(DetectorBackend):
 
             for box, cls_id, sc in zip(boxes, classes, scores):
                 x1, y1, x2, y2 = [float(v) for v in box]
+                logger.info(f"DIAGNOSTIC COORDS - Frame ({width}x{height}), dw={dw}, dh={dh}, ratio={ratio}. Raw box: [{x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}]")
 
                 # Map coordinates back to original frame size (before letterboxing)
                 x1 = (x1 - dw) / ratio
