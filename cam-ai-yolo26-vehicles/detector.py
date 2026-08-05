@@ -463,10 +463,13 @@ class RKNNYOLOv8Detector(DetectorBackend):
         # 1. Letterbox frame to model's expected 640x640 input grid
         letterboxed_frame, ratio, (dw, dh) = letterbox(frame, new_shape=(640, 640))
 
-        # 2. Add batch dimension (1, 640, 640, 3) NHWC in native BGR format
-        nhwc = np.expand_dims(letterboxed_frame, 0).astype(np.uint8)
+        # 2. Convert BGR to RGB to match ONNX PyTorch model training channel order
+        rgb_frame = cv2.cvtColor(letterboxed_frame, cv2.COLOR_BGR2RGB)
 
-        # 3. Run hardware inference
+        # 3. Add batch dimension (1, 640, 640, 3) NHWC
+        nhwc = np.expand_dims(rgb_frame, 0).astype(np.uint8)
+
+        # 4. Run hardware inference
         outputs = self.rknn.inference(inputs=[nhwc])
 
         # 4. Apply battle-tested YOLOv8 NPU postprocessing
