@@ -17,11 +17,11 @@ class MQTTClientWrapper:
         
         # Instantiate client with Paho v1 compatibility
         # We will pin paho-mqtt < 2.0.0 in requirements.txt to avoid protocol signature changes.
-        import os, socket
+        import os, socket, time
         core_mask = os.getenv("RKNN_CORE_MASK", "0")
         npu_slot = f"_npu{core_mask}" if core_mask in ["1", "2"] else ""
         hostname = socket.gethostname()
-        client_id = f"cam_ai_worker_{self.camera_id}{npu_slot}_{hostname}"
+        client_id = f"cam_ai_worker_{self.camera_id}{npu_slot}_{hostname}_sup_{os.getpid()}"
         self.client = mqtt.Client(client_id=client_id)
         
         self.connected = False
