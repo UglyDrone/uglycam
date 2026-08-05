@@ -390,36 +390,17 @@ function renderAllDetections() {
         return;
     }
 
-    const containerW = bboxCanvas.width / (window.devicePixelRatio || 1);
-    const containerH = bboxCanvas.height / (window.devicePixelRatio || 1);
-
-    // Compute aspect-ratio letterbox bounds (16:9 aspect ratio)
-    const targetAspect = 16.0 / 9.0;
-    const containerAspect = containerW / containerH;
-
-    let videoW, videoH, offsetX, offsetY;
-    if (containerAspect > targetAspect) {
-        // Pillow/padding on left & right
-        videoH = containerH;
-        videoW = videoH * targetAspect;
-        offsetX = (containerW - videoW) / 2.0;
-        offsetY = 0;
-    } else {
-        // Pillow/padding on top & bottom
-        videoW = containerW;
-        videoH = videoW / targetAspect;
-        offsetX = 0;
-        offsetY = (containerH - videoH) / 2.0;
-    }
+    const w = bboxCanvas.width / (window.devicePixelRatio || 1);
+    const h = bboxCanvas.height / (window.devicePixelRatio || 1);
 
     allDetections.forEach(det => {
         const [x1, y1, x2, y2] = det.bbox; // Normalized float coordinates (0.0 to 1.0)
         
-        // Map to letterboxed display resolution coordinates
-        const left = offsetX + x1 * videoW;
-        const top = offsetY + y1 * videoH;
-        const width = (x2 - x1) * videoW;
-        const height = (y2 - y1) * videoH;
+        // Map normalized coordinates directly to canvas dimensions
+        const left = x1 * w;
+        const top = y1 * h;
+        const width = (x2 - x1) * w;
+        const height = (y2 - y1) * h;
 
         const color = CLASS_COLORS[det.class] || CLASS_COLORS['default'];
 
